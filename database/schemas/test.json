@@ -1,0 +1,9 @@
+{
+    "CHURCHID" :{"S" : "smioc"},
+    "MEMBERID":{"S" : "00004"},
+    "FirstName" :{"S" : "rowan"},
+    "LastName" :{"S" : "mohan"},
+    "sex" :{"S" : "male"},
+    "address" :{"S" : "721/1"},
+    "Birthday" :{"S" : "27-may"}
+}

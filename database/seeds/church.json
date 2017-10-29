@@ -1,0 +1,40 @@
+{
+    "Church": [
+        {
+            "PutRequest": {
+                "Item": {
+                    "ChurchId": {
+                        "S": "smioc"
+                    },
+                    "Address": {
+                        "S": "96 Carlingford Rd, Epping NSW 2121"
+                    },
+                    "Phone": {
+                        "S": "0470 289 585"
+                    },
+                    "EmailId": {
+                        "S": "smioc.sydney@gmail.com"
+                    }
+                }
+            }
+        },
+        {
+            "PutRequest": {
+                "Item": {
+                    "ChurchId": {
+                        "S": "stioc"
+                    },
+                    "Address": {
+                        "S": "96, Village Way Wattle Grove NSW 2173"
+                    },
+                    "Phone": {
+                        "S": "2222 333 222"
+                    },
+                    "EmailId": {
+                        "S": "stioc.test@gmail.com"
+                    }
+                }
+            }
+        }
+    ]
+}
