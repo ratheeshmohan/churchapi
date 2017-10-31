@@ -6,6 +6,9 @@
                     "ChurchId": {
                         "S": "smioc"
                     },
+                    "Name": {
+                        "S": "smioc"
+                    },
                     "Address": {
                         "S": "96 Carlingford Rd, Epping NSW 2121"
                     },
@@ -22,6 +25,9 @@
             "PutRequest": {
                 "Item": {
                     "ChurchId": {
+                        "S": "stioc"
+                    },
+                    "Name": {
                         "S": "stioc"
                     },
                     "Address": {
