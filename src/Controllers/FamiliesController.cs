@@ -11,7 +11,8 @@ namespace parishdirectoryapi.Controllers
     /// <summary>
     /// 
     /// </summary>
-    [Route("api/[controller]")]
+    [Route("api/churches/{churchId}/families")]
+    [ValidateModel]
     public class FamiliesController : Controller
     {
         ILogger Logger { get; }
@@ -21,17 +22,27 @@ namespace parishdirectoryapi.Controllers
             Logger = logger;
         }
 
-        [HttpPost]
-        public async Task<IActionResult> Post([FromBody]Family family)
+        [HttpGet("{familyId}")]
+        public async Task<IActionResult> Get(string churchId, string familyId)
         {
+            Logger.LogInformation($"Getting details of family using  churchId {churchId} and familyId {familyId} ");
+
+            var family = await DynamodbWrapper.DDBContext.LoadAsync<Family>(churchId, familyId);
+
+            Logger.LogInformation($"Found family using  churchId {churchId} and familyId {familyId} : {family != null}");
+            return family == null ? NotFound() : (IActionResult)Ok(family);
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> Post(string churchId, [FromBody]Family family)
+        {
+            family.ChurchId = churchId;
+
             //TODO:
             //1. this.Request.Headers["Authorization"]
-            //Add Microsoft.AspNetCore.Authentication.JwtBearer middleware and check if this call is made by church administrator
+            //Add Microsoft.AspNetCore.Authentication.JwtBearer middleware and check if this call is made by {family.ChurchId}'s church administrator
 
-            const string churchId = "smioc"; //TEMP
-
-            family.ChurchId = churchId;
-            Logger.LogInformation($"Creating a new family for ChurchId {churchId} and FamilyId {family.FamilyId}");
+            Logger.LogInformation($"Creating a new family for ChurchId {family.ChurchId} and FamilyId {family.FamilyId}");
 
             var createUserTask = CreateIAMUser(family.LoginEmail, family.FamilyId);
             var addFamilyTask = AddFamily(family);
@@ -41,25 +52,25 @@ namespace parishdirectoryapi.Controllers
             string errorResult = $"Family with Id {family.FamilyId} and LoginEmail {family.LoginEmail} already exists";
             if (createUserTask.Result && addFamilyTask.Result)
             {
-                Logger.LogInformation($"Creating family completed for ChurchId {churchId} and FamilyId {family.FamilyId}");
+                Logger.LogInformation($"Creating family completed for ChurchId {family.ChurchId} and FamilyId {family.FamilyId}");
                 return Created($"/api/families/{family.FamilyId}", "");
             }
             else if (createUserTask.Result && !addFamilyTask.Result)
             {
-                errorResult = $"FamilyId {family.FamilyId} already exists";
-                //Rollback
                 await DeleteIAMUser(family.LoginEmail, family.FamilyId);
-                Logger.LogInformation($"Rolled back added IAM User ChurchId {churchId} and LoginEmail {family.LoginEmail}");
+
+                errorResult = $"FamilyId {family.FamilyId} already exists";
+                Logger.LogInformation($"Rolled back added IAM User ChurchId {family.ChurchId} and LoginEmail {family.LoginEmail}");
             }
             else if (!createUserTask.Result && addFamilyTask.Result)
             {
-                errorResult = $"LoginEmail {family.LoginEmail} already exists";
-                //Rollback
                 await RemoveFamily(family);
-                Logger.LogInformation($"Rolled back added family ChurchId {churchId} and FamilyId {family.FamilyId}");
+
+                errorResult = $"LoginEmail {family.LoginEmail} already exists";
+                Logger.LogInformation($"Rolled back added family ChurchId {family.ChurchId} and FamilyId {family.FamilyId}");
             }
 
-            Logger.LogInformation($"Creating family failed for ChurchId {churchId} and FamilyId {family.FamilyId}. {errorResult}");
+            Logger.LogInformation($"Creating family failed for ChurchId {family.ChurchId} and FamilyId {family.FamilyId}. {errorResult}");
             return BadRequest(errorResult);
         }
 

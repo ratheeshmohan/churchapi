@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 
 namespace parishdirectoryapi.Controllers.Models
 {
@@ -10,7 +11,9 @@ namespace parishdirectoryapi.Controllers.Models
     public class Family
     {
         public string ChurchId { get; set; }
-        public string FamilyId { get; set; }        
+        [Required]
+        public string FamilyId { get; set; }
+        [Required]
         public string LoginEmail { get; set; }
         public string Address { get; set; }
         public string HomeParish { get; set; }
