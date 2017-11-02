@@ -2,8 +2,9 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Amazon.DynamoDBv2.DocumentModel;
-using parishdirectoryapi.Controllers.Models;
+using parishdirectoryapi.Models;
 using Amazon.DynamoDBv2.Model;
+using parishdirectoryapi.Controllers.Actions;
 
 namespace parishdirectoryapi.Controllers
 {

@@ -1,22 +1,28 @@
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 
-namespace parishdirectoryapi.Controllers.Models
+namespace parishdirectoryapi.Models
 {
     public enum Sex
     {
         Male,
         Female
     }
+
+    public class Parish
+    {
+        public string Name { get; set; }
+        public Address Address { get; set; }
+    }
+
     public class Family
     {
         public string ChurchId { get; set; }
         [Required]
         public string FamilyId { get; set; }
         [Required]
-        public string LoginEmail { get; set; }
-        public string Address { get; set; }
-        public string HomeParish { get; set; }
+        public Address Address { get; set; }
+        public Parish HomeParish { get; set; }
         public string PhotoUrl { get; set; }
         public MemberProfile Husband { get; set; }
         public MemberProfile Wife { get; set; }
@@ -29,7 +35,6 @@ namespace parishdirectoryapi.Controllers.Models
 
         public MemberProfile[] InLaws { get; set; }
         public MemberProfile[] Childrens { get; set; }
-
     }
 
     public class MemberProfile
@@ -37,6 +42,7 @@ namespace parishdirectoryapi.Controllers.Models
         public string FirstName { get; set; }
         public string MiddleName { get; set; }
         public string LastName { get; set; }
+        public string NickName { get; set; }
         public Sex Gender { get; set; }
         public string Phone { get; set; }
         public string EmailId { get; set; }

@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 
-namespace parishdirectoryapi.Controllers
+namespace parishdirectoryapi.Controllers.Actions
 {
     public class ValidateModelAttribute : ActionFilterAttribute
     {

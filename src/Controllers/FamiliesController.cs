@@ -3,8 +3,9 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using System.Net;
 using Amazon.DynamoDBv2.DocumentModel;
-using parishdirectoryapi.Controllers.Models;
+using parishdirectoryapi.Models;
 using Amazon.DynamoDBv2.Model;
+using parishdirectoryapi.Controllers.Actions;
 
 namespace parishdirectoryapi.Controllers
 {
@@ -22,6 +23,28 @@ namespace parishdirectoryapi.Controllers
             Logger = logger;
         }
 
+        [HttpPut("{familyId}")]
+        public async Task<IActionResult> Put(string churchId, string familyId, Family family)
+        {
+            var expr = new Expression
+            {
+                ExpressionStatement = "attribute_exists(FamilyId)"
+            };
+
+            var document = DynamodbWrapper.DDBContext.ToDocument(family);
+            try
+            {
+                await DynamodbWrapper.FamiliesTable.PutItemAsync(document,
+                    new PutItemOperationConfig() { ConditionalExpression = expr });
+                return Ok();
+            }
+            catch (ConditionalCheckFailedException)
+            {
+                return BadRequest($"Church with id {family.ChurchId} and {family.ChurchId} doesnot exists");
+            }
+        }
+
+
         [HttpGet("{familyId}")]
         public async Task<IActionResult> Get(string churchId, string familyId)
         {
@@ -34,9 +57,13 @@ namespace parishdirectoryapi.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> Post(string churchId, [FromBody]Family family)
+        public async Task<IActionResult> Post(string churchId, [FromBody]CreateFamilyRequest request)
         {
-            family.ChurchId = churchId;
+            var family = new Family
+            {
+                ChurchId = churchId,
+                FamilyId = request.FamilyId
+            };
 
             //TODO:
             //1. this.Request.Headers["Authorization"]
@@ -44,12 +71,12 @@ namespace parishdirectoryapi.Controllers
 
             Logger.LogInformation($"Creating a new family for ChurchId {family.ChurchId} and FamilyId {family.FamilyId}");
 
-            var createUserTask = CreateIAMUser(family.LoginEmail, family.FamilyId);
+            var createUserTask = CreateIAMUser(request.LoginEmail, family.FamilyId);
             var addFamilyTask = AddFamily(family);
 
             await Task.WhenAll(createUserTask, addFamilyTask);
 
-            string errorResult = $"Family with Id {family.FamilyId} and LoginEmail {family.LoginEmail} already exists";
+            string errorResult = $"Family with Id {family.FamilyId} and LoginEmail {request.LoginEmail} already exists";
             if (createUserTask.Result && addFamilyTask.Result)
             {
                 Logger.LogInformation($"Creating family completed for ChurchId {family.ChurchId} and FamilyId {family.FamilyId}");
@@ -57,16 +84,16 @@ namespace parishdirectoryapi.Controllers
             }
             else if (createUserTask.Result && !addFamilyTask.Result)
             {
-                await DeleteIAMUser(family.LoginEmail, family.FamilyId);
+                await DeleteIAMUser(request.LoginEmail, family.FamilyId);
 
                 errorResult = $"FamilyId {family.FamilyId} already exists";
-                Logger.LogInformation($"Rolled back added IAM User ChurchId {family.ChurchId} and LoginEmail {family.LoginEmail}");
+                Logger.LogInformation($"Rolled back added IAM User ChurchId {family.ChurchId} and LoginEmail {request.LoginEmail}");
             }
             else if (!createUserTask.Result && addFamilyTask.Result)
             {
                 await RemoveFamily(family);
 
-                errorResult = $"LoginEmail {family.LoginEmail} already exists";
+                errorResult = $"LoginEmail {request.LoginEmail} already exists";
                 Logger.LogInformation($"Rolled back added family ChurchId {family.ChurchId} and FamilyId {family.FamilyId}");
             }
 
