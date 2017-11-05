@@ -1,15 +1,12 @@
-using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using Amazon.DynamoDBv2.DataModel;
 
 namespace parishdirectoryapi.Models
 {
-
-    public class CreateFamilyRequest
+    public class FamilyOverview
     {
         public string ChurchId { get; set; }
-        [Required]
         public string FamilyId { get; set; }
-        [Required]
-        public string LoginEmail { get; set; }
+       
     }
 }

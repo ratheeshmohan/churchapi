@@ -6,73 +6,72 @@ using Amazon.DynamoDBv2.DocumentModel;
 using parishdirectoryapi.Models;
 using Amazon.DynamoDBv2.Model;
 using parishdirectoryapi.Controllers.Actions;
+using parishdirectoryapi.Security;
+using parishdirectoryapi.Controllers.Models;
+using parishdirectoryapi.Services;
+using System.Linq;
+using System.Collections.Generic;
 
 namespace parishdirectoryapi.Controllers
 {
     /// <summary>
     /// 
     /// </summary>
-    [Route("api/churches/{churchId}/families")]
+    [Route("api/families")]
     [ValidateModel]
     public class FamiliesController : Controller
     {
         ILogger Logger { get; }
+        private IDataRepository _dataRepository;
 
-        public FamiliesController(ILogger<FamiliesController> logger)
+        public FamiliesController(IDataRepository dataRepository, ILogger<FamilyController> logger)
         {
+            _dataRepository = dataRepository;
             Logger = logger;
         }
 
-        [HttpPut("{familyId}")]
-        public async Task<IActionResult> Put(string churchId, string familyId, Family family)
-        {
-            var expr = new Expression
-            {
-                ExpressionStatement = "attribute_exists(FamilyId)"
-            };
+        //TODO:
+        //1. this.Request.Headers["Authorization"]
+        //Add Microsoft.AspNetCore.Authentication.JwtBearer middleware and check if this call is made by {family.ChurchId}'s church administrator
+        /* 
+             [HttpGet]
+             //[Admin Only ROLE]
+             public async Task<IActionResult> Get()
+             {
+                 var user = GetUserContext();
 
-            var document = DynamodbWrapper.DDBContext.ToDocument(family);
-            try
-            {
-                await DynamodbWrapper.FamiliesTable.PutItemAsync(document,
-                    new PutItemOperationConfig() { ConditionalExpression = expr });
-                return Ok();
-            }
-            catch (ConditionalCheckFailedException)
-            {
-                return BadRequest($"Church with id {family.ChurchId} and {family.ChurchId} doesnot exists");
-            }
-        }
+             }
 
+                   [HttpGet("/{familyId}")]
+                   //[Admin Only ROLE]
+                   public async Task<IActionResult> Get(string familyId)
+                   {
 
-        [HttpGet("{familyId}")]
-        public async Task<IActionResult> Get(string churchId, string familyId)
-        {
-            Logger.LogInformation($"Getting details of family using  churchId {churchId} and familyId {familyId} ");
+                   }
 
-            var family = await DynamodbWrapper.DDBContext.LoadAsync<Family>(churchId, familyId);
+                           [HttpPut("/{familyId}")]
+                           //[Admin Only ROLE]
+                           public async Task<IActionResult> Put(FamilyPofile profile)
+                           {
 
-            Logger.LogInformation($"Found family using  churchId {churchId} and familyId {familyId} : {family != null}");
-            return family == null ? NotFound() : (IActionResult)Ok(family);
-        }
-
+                           }
+                   */
         [HttpPost]
-        public async Task<IActionResult> Post(string churchId, [FromBody]CreateFamilyRequest request)
+        //[Admin Only ROLE]
+        public async Task<IActionResult> Post([FromBody]Models.CreateFamilyRequest request)
         {
+            var churchId = GetUserContext().ChurchId;
             var family = new Family
             {
                 ChurchId = churchId,
-                FamilyId = request.FamilyId
+                FamilyId = request.FamilyId,
+                LoginId = request.LoginEmail
             };
 
-            //TODO:
-            //1. this.Request.Headers["Authorization"]
-            //Add Microsoft.AspNetCore.Authentication.JwtBearer middleware and check if this call is made by {family.ChurchId}'s church administrator
-
-            Logger.LogInformation($"Creating a new family for ChurchId {family.ChurchId} and FamilyId {family.FamilyId}");
+            Logger.LogInformation($"Creating a new family using ChurchId {family.ChurchId} and FamilyId {family.FamilyId}");
 
             var createUserTask = CreateIAMUser(request.LoginEmail, family.FamilyId);
-            var addFamilyTask = AddFamily(family);
+            var addFamilyTask = _dataRepository.CreateFamily(family.ChurchId, family.FamilyId);
 
             await Task.WhenAll(createUserTask, addFamilyTask);
 
@@ -91,14 +90,63 @@ namespace parishdirectoryapi.Controllers
             }
             else if (!createUserTask.Result && addFamilyTask.Result)
             {
-                await RemoveFamily(family);
-
+                var isDeleted = await _dataRepository.DeleteFamily(family.ChurchId, family.FamilyId);
+                if (!isDeleted)
+                {
+                    Logger.LogError($"Failed to rollback the created used. Failed to delete family from database.");
+                }
                 errorResult = $"LoginEmail {request.LoginEmail} already exists";
                 Logger.LogInformation($"Rolled back added family ChurchId {family.ChurchId} and FamilyId {family.FamilyId}");
             }
 
             Logger.LogInformation($"Creating family failed for ChurchId {family.ChurchId} and FamilyId {family.FamilyId}. {errorResult}");
             return BadRequest(errorResult);
+        }
+
+
+        [HttpPost("{familyId}/addmembers")]
+        public async Task<IActionResult> Post(string familyId, [FromBody]MemberViewModel[] members)
+        {
+            var churchId = GetUserContext().ChurchId;
+            var family = await _dataRepository.GetFamily(churchId, familyId);
+            if (family == null)
+            {
+                return NotFound();
+            }
+
+            var map = new Dictionary<MemberViewModel, Member>();
+            foreach (var m in members)
+            {
+                var member = CreateMember(m);
+                member.FamilyId = familyId;
+                map[m] = member;
+            }
+
+            var result = await _dataRepository.AddMembers(churchId, map.Values.ToArray());
+            if (!result)
+            {
+                return StatusCode((int)HttpStatusCode.InternalServerError);
+            }
+
+            if (family.Members == null)
+            {
+                family.Members = new List<FamilyMember>();
+            }
+            foreach (var keyval in map)
+            {
+                family.Members.Add(new FamilyMember { MemberId = keyval.Value.MemberId, Role = keyval.Key.Role });
+            }
+
+            //Update Family.
+            await _dataRepository.UpdateFamily(family);
+            return Ok();
+        }
+
+        private Member CreateMember(MemberViewModel memberVM)
+        {
+            var member = memberVM.ToMember();
+            member.MemberId = System.Guid.NewGuid().ToString();
+            return member;
         }
 
         private Task<bool> CreateIAMUser(string email, string familyId)
@@ -113,28 +161,10 @@ namespace parishdirectoryapi.Controllers
             return Task.FromResult(true);
         }
 
-        private async Task<bool> AddFamily(Family family)
+        private UserContext GetUserContext()
         {
-            var expr = new Expression
-            {
-                ExpressionStatement = "attribute_not_exists(FamilyId)"
-            };
-            var document = DynamodbWrapper.DDBContext.ToDocument(family);
-            try
-            {
-                await DynamodbWrapper.FamiliesTable.PutItemAsync(document, new PutItemOperationConfig() { ConditionalExpression = expr });
-                return true;
-            }
-            catch (ConditionalCheckFailedException)
-            {
-                return false;
-            }
-        }
-
-        private Task RemoveFamily(Family family)
-        {
-            var familyDoc = DynamodbWrapper.DDBContext.ToDocument(family);
-            return DynamodbWrapper.FamiliesTable.DeleteItemAsync(familyDoc);
+            //TEMP: read from user claims
+            return new UserContext { FamilyId = null, ChurchId = "smioc", LoginId = "admin@gmail.com" };
         }
     }
 }
