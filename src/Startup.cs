@@ -34,6 +34,7 @@ namespace parishdirectoryapi
             services.AddMvc()
                 .AddJsonOptions(options =>
                          {
+                             options.SerializerSettings.Converters.Add(new Newtonsoft.Json.Converters.StringEnumConverter());
                              options.SerializerSettings.ContractResolver = new Newtonsoft.Json.Serialization.DefaultContractResolver();
                          });
             // Pull in any SDK configuration from Configuration object

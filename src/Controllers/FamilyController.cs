@@ -71,19 +71,19 @@ namespace parishdirectoryapi.Controllers
             familyVM.HomeParish = family.HomeParish;
             familyVM.PhotoUrl = family.PhotoUrl;
 
-            var map = new Dictionary<string, FamilyRole>();
+            var members2RoleMap = new Dictionary<string, FamilyRole>();
             foreach (var m in family.Members)
             {
-                map[m.MemberId] = m.Role;
+                members2RoleMap[m.MemberId] = m.Role;
             }
 
-            if (map.Keys.Any())
+            if (members2RoleMap.Keys.Any())
             {
-                var members = await _dataRepository.GetMembers(userContext.ChurchId, map.Keys);
+                var members = await _dataRepository.GetMembers(userContext.ChurchId, members2RoleMap.Keys);
                 familyVM.Members = members.Select(m =>
                 {
                     var vm = m.ToMemberViewModel();
-                    vm.Role = map[vm.MemberId];
+                    vm.Role = members2RoleMap[vm.MemberId];
                     return vm;
                 });
             }
@@ -93,7 +93,7 @@ namespace parishdirectoryapi.Controllers
         private UserContext GetUserContext()
         {
             //TEMP: read from user claims
-            return new UserContext { FamilyId = "1", ChurchId = "smioc", LoginId = "ratheeshmohan@gmail.com" };
+            return new UserContext { FamilyId = "fam0001", ChurchId = "smioc", LoginId = "ratheeshmohan@gmail.com" };
         }
     }
 }

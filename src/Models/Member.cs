@@ -4,6 +4,12 @@ using System.ComponentModel.DataAnnotations;
 
 namespace parishdirectoryapi.Models
 {
+    public enum Sex
+    {
+        Male,
+        Female
+    }
+
     public class Member
     {
         public string ChurchId { get; set; }

@@ -10,3 +10,6 @@ aws dynamodb create-table --table-name Churches --attribute-definitions Attribut
 
 #Creates Family table
 aws dynamodb create-table --table-name Families --attribute-definitions AttributeName=ChurchId,AttributeType=S AttributeName=FamilyId,AttributeType=S --key-schema AttributeName=ChurchId,KeyType=HASH AttributeName=FamilyId,KeyType=RANGE --provisioned-throughput ReadCapacityUnits=1,WriteCapacityUnits=1 --profile admin
+
+#Creates Members table
+aws dynamodb create-table --table-name Members --attribute-definitions AttributeName=ChurchId,AttributeType=S AttributeName=MemberId,AttributeType=S --key-schema AttributeName=ChurchId,KeyType=HASH AttributeName=MemberId,KeyType=RANGE --provisioned-throughput ReadCapacityUnits=1,WriteCapacityUnits=1 --profile admin

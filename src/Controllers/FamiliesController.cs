@@ -119,10 +119,11 @@ namespace parishdirectoryapi.Controllers
             {
                 var member = CreateMember(m);
                 member.FamilyId = familyId;
+                member.ChurchId = churchId;
                 map[m] = member;
             }
 
-            var result = await _dataRepository.AddMembers(churchId, map.Values.ToArray());
+            var result = await _dataRepository.AddMembers(map.Values);
             if (!result)
             {
                 return StatusCode((int)HttpStatusCode.InternalServerError);

@@ -8,29 +8,12 @@ using Amazon.DynamoDBv2.Model;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using System.Collections.Generic;
+using System;
+using System.Linq;
+using Amazon.Util;
 
 namespace parishdirectoryapi.Services
 {
-
-    public interface IDataRepository
-    {
-        Task<bool> AddChurch(Church church);
-        Task<Church> GetChurch(string churchId);
-        Task<bool> UpdateChurch(Church church);
-
-        Task<bool> CreateFamily(string churchId, string familyId);
-        Task<bool> DeleteFamily(string churchId, string familyId);
-        Task<bool> UpdateFamily(Family family);
-        Task<Family> GetFamily(string churchId, string familyId);
-
-        Task<bool> AddMembers(string churchId, IEnumerable<Member> members);
-        Task<bool> UpdateMember(string churchId, Member member);
-        Task<bool> RemoveMember(string churchId, string memberId);
-
-        Task<IEnumerable<Member>> GetMembers(string churchId, IEnumerable<string> memberIds);
-        Task<IEnumerable<Family>> GetFamilies(string churchId);
-    }
-
     public class DataRepository : IDataRepository
     {
         private class DDBTableNames
@@ -51,29 +34,22 @@ namespace parishdirectoryapi.Services
         {
             _logger = logger;
 
-            AWSConfigsDynamoDB.Context.TypeMappings[typeof(Church)] = new Amazon.Util.TypeMapping(typeof(Church), DDBTableNames.CHURCHTABLE_NAME);
-            AWSConfigsDynamoDB.Context.TypeMappings[typeof(Family)] = new Amazon.Util.TypeMapping(typeof(Family), DDBTableNames.FAMILYTABLE_NAME);
+            AWSConfigsDynamoDB.Context.TypeMappings[typeof(Church)] = new TypeMapping(typeof(Church), DDBTableNames.CHURCHTABLE_NAME);
+            AWSConfigsDynamoDB.Context.TypeMappings[typeof(Family)] = new TypeMapping(typeof(Family), DDBTableNames.FAMILYTABLE_NAME);
 
-            var config = new DynamoDBContextConfig { Conversion = DynamoDBEntryConversion.V2 };
+            var config = new Amazon.DynamoDBv2.DataModel.DynamoDBContextConfig { Conversion = DynamoDBEntryConversion.V2 };
             DDBContext = new DynamoDBContext(new AmazonDynamoDBClient(), config);
         }
 
-        async Task<bool> IDataRepository.AddMembers(string churchId, IEnumerable<Member> members)
+        async Task<bool> IDataRepository.AddMembers(IEnumerable<Member> members)
         {
-            var batchWrite = DDBContext.CreateBatchWrite<Member>(new DynamoDBOperationConfig
+            var batchWrite = MembersTable.CreateBatchWrite();
+            foreach (var member in members)
             {
-                IgnoreNullValues = true
-            });
-
-            batchWrite.AddPutItems(members);
-            try
-            {
-                await batchWrite.ExecuteAsync();
+                var document = DDBContext.ToDocument(member);
+                batchWrite.AddDocumentToPut(document);
             }
-            catch
-            {
-                return false;
-            }
+            await batchWrite.ExecuteAsync();
             return true;
         }
 
@@ -132,17 +108,15 @@ namespace parishdirectoryapi.Services
 
         async Task<IEnumerable<Member>> IDataRepository.GetMembers(string churchId, IEnumerable<string> memberIds)
         {
-            var config = new DynamoDBOperationConfig();
-            config.QueryFilter = new List<ScanCondition> { new ScanCondition("MemberId", ScanOperator.In, memberIds) };
-
-            var query = DDBContext.QueryAsync<Member>(churchId, config);
-            var members = await query.GetNextSetAsync();
-            while (!query.IsDone)
+            var batchGet = MembersTable.CreateBatchGet();
+            foreach (var memberId in memberIds)
             {
-                var rem = await query.GetRemainingAsync();
-                members.AddRange(rem);
+                batchGet.AddKey(churchId, memberId);
             }
-            return members;
+
+            await batchGet.ExecuteAsync();
+
+            return batchGet.Results.Select(doc => DDBContext.FromDocument<Member>(doc));
         }
 
         async Task<IEnumerable<Family>> IDataRepository.GetFamilies(string churchId)
@@ -168,7 +142,7 @@ namespace parishdirectoryapi.Services
             return family;
         }
 
-        async Task<bool> IDataRepository.UpdateMember(string churchId, Member member)
+        async Task<bool> IDataRepository.UpdateMember(Member member)
         {
             var expr = new Expression
             {
