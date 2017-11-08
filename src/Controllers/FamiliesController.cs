@@ -103,15 +103,35 @@ namespace parishdirectoryapi.Controllers
             return BadRequest(errorResult);
         }
 
+        [HttpPost("{familyId}/updateprofile")]
+        public async Task<IActionResult> UpdateProfile(string familyId, [FromBody]FamilyProfile profile)
+        {
+            var churchId = GetUserContext().ChurchId;
+            var family = new Family()
+            {
+                ChurchId = churchId,
+                FamilyId = familyId,
+                PhotoUrl = profile.PhotoUrl,
+                Address = profile.Address,
+                HomeParish = profile.HomeParish
+            };
+
+            var result = await _dataRepository.UpdateFamily(family);
+            if (!result)
+            {
+                return StatusCode((int)HttpStatusCode.InternalServerError);
+            }
+            return Ok();
+        }
 
         [HttpPost("{familyId}/addmembers")]
-        public async Task<IActionResult> Post(string familyId, [FromBody]MemberViewModel[] members)
+        public async Task<IActionResult> AddMembers(string familyId, [FromBody]MemberViewModel[] members)
         {
             var churchId = GetUserContext().ChurchId;
             var family = await _dataRepository.GetFamily(churchId, familyId);
             if (family == null)
             {
-                return NotFound();
+                return BadRequest();
             }
 
             var map = new Dictionary<MemberViewModel, Member>();
@@ -140,6 +160,73 @@ namespace parishdirectoryapi.Controllers
 
             //Update Family.
             await _dataRepository.UpdateFamily(family);
+            return Ok();
+        }
+
+
+        [HttpPost("{familyId}/removemembers")]
+        public async Task<IActionResult> RemoveMembers(string familyId, [FromBody]string[] memberIds)
+        {
+            var churchId = GetUserContext().ChurchId;
+            var family = await _dataRepository.GetFamily(churchId, familyId);
+            if (family == null || family.Members == null)
+            {
+                return BadRequest();
+            }
+
+            var keep = new List<FamilyMember>();
+            var remove = new List<string>();
+            foreach (var member in family.Members)
+            {
+                if (memberIds.Contains(member.MemberId))
+                {
+                    remove.Add(member.MemberId);
+                }
+                else
+                {
+                    keep.Add(member);
+                }
+            }
+
+            if (!memberIds.SequenceEqual(remove))
+            {
+                return BadRequest();
+            }
+
+            //Update Family.
+            family.Members = keep;
+            var updateTask = _dataRepository.UpdateFamily(family);
+
+            var removeTask = _dataRepository.RemoveMember(churchId, remove);
+            await Task.WhenAll(updateTask, removeTask);
+            return Ok();
+        }
+
+        [HttpPost("{familyId}/updatemembers")]
+        public async Task<IActionResult> UpdateMembers(string familyId, [FromBody]MemberViewModel[] members)
+        {
+            var churchId = GetUserContext().ChurchId;
+            var family = await _dataRepository.GetFamily(churchId, familyId);
+            if (family == null || family.Members == null)
+            {
+                return BadRequest();
+            }
+
+            var familyMembers = family.Members.Select(m => m.MemberId).ToList();
+            if (!members.All(m => !string.IsNullOrEmpty(m.MemberId) && familyMembers.Contains(m.MemberId)))
+            {
+                return BadRequest();
+            }
+
+            var modelMembers = members.Select(m =>
+            {
+                var member = m.ToMember();
+                member.FamilyId = familyId;
+                member.ChurchId = churchId;
+                return member;
+            });
+
+            await Task.WhenAll(modelMembers.Select(m => _dataRepository.UpdateMember(m)));
             return Ok();
         }
 

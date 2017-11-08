@@ -19,14 +19,14 @@ namespace parishdirectoryapi.Services
 
         Task<bool> CreateFamily(string churchId, string familyId);
         Task<bool> DeleteFamily(string churchId, string familyId);
-        Task<bool> UpdateFamily(Family family);
         Task<Family> GetFamily(string churchId, string familyId);
+        Task<bool> UpdateFamily(Family family);
 
         Task<bool> AddMembers(IEnumerable<Member> members);
-        Task<bool> UpdateMember(Member member);
-        Task<bool> RemoveMember(string churchId, string memberId);
-
+        Task<bool> RemoveMember(string churchId, IEnumerable<string> memberIds);
         Task<IEnumerable<Member>> GetMembers(string churchId, IEnumerable<string> memberIds);
+        Task<bool> UpdateMember(Member member);
+
         Task<IEnumerable<Family>> GetFamilies(string churchId);
     }
 }

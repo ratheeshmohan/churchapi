@@ -23,12 +23,11 @@ namespace parishdirectoryapi.Services
             public const string MEMBERTABLE_NAME = "Members";
         }
 
-        private ILogger<DataRepository> _logger;
-        private IDynamoDBContext DDBContext;
-
-        private Table ChurchesTable => Table.LoadTable(new AmazonDynamoDBClient(), DDBTableNames.CHURCHTABLE_NAME);
-        private Table FamiliesTable => Table.LoadTable(new AmazonDynamoDBClient(), DDBTableNames.FAMILYTABLE_NAME);
-        private Table MembersTable => Table.LoadTable(new AmazonDynamoDBClient(), DDBTableNames.MEMBERTABLE_NAME);
+        private readonly Table _churchesTable;
+        private readonly Table _familiesTable;
+        private readonly Table _membersTable;
+        private readonly IDynamoDBContext DDBContext;
+        private readonly ILogger<DataRepository> _logger;
 
         public DataRepository(ILogger<DataRepository> logger)
         {
@@ -36,14 +35,25 @@ namespace parishdirectoryapi.Services
 
             AWSConfigsDynamoDB.Context.TypeMappings[typeof(Church)] = new TypeMapping(typeof(Church), DDBTableNames.CHURCHTABLE_NAME);
             AWSConfigsDynamoDB.Context.TypeMappings[typeof(Family)] = new TypeMapping(typeof(Family), DDBTableNames.FAMILYTABLE_NAME);
+            AWSConfigsDynamoDB.Context.TypeMappings[typeof(Member)] = new TypeMapping(typeof(Family), DDBTableNames.MEMBERTABLE_NAME);
 
-            var config = new Amazon.DynamoDBv2.DataModel.DynamoDBContextConfig { Conversion = DynamoDBEntryConversion.V2 };
+            var config = new Amazon.DynamoDBv2.DataModel.DynamoDBContextConfig
+            {
+                Conversion = DynamoDBEntryConversion.V2,
+                IgnoreNullValues = true
+            };
             DDBContext = new DynamoDBContext(new AmazonDynamoDBClient(), config);
+
+            _churchesTable = DDBContext.GetTargetTable<Church>(new DynamoDBOperationConfig { IgnoreNullValues = true });
+            _familiesTable = DDBContext.GetTargetTable<Family>(new DynamoDBOperationConfig { IgnoreNullValues = true });
+            _membersTable = DDBContext.GetTargetTable<Member>(new DynamoDBOperationConfig { IgnoreNullValues = true });
         }
+
+        #region Members
 
         async Task<bool> IDataRepository.AddMembers(IEnumerable<Member> members)
         {
-            var batchWrite = MembersTable.CreateBatchWrite();
+            var batchWrite = _membersTable.CreateBatchWrite();
             foreach (var member in members)
             {
                 var document = DDBContext.ToDocument(member);
@@ -53,62 +63,25 @@ namespace parishdirectoryapi.Services
             return true;
         }
 
-        async Task<bool> IDataRepository.CreateFamily(string churchId, string familyId)
+        Task<bool> IDataRepository.UpdateMember(Member member)
         {
-            var family = new Family { ChurchId = churchId, FamilyId = familyId };
-            var document = DDBContext.ToDocument(family);
-            var config = new PutItemOperationConfig { ConditionalExpression = GetAttributeNotExists(nameof(family.FamilyId)) };
-            try
-            {
-                _logger.LogInformation($"Creating family with churchId :{family.ChurchId} and familyId:{family.FamilyId}");
-                await FamiliesTable.PutItemAsync(document, config);
-                return true;
-            }
-            catch (ConditionalCheckFailedException)
-            {
-                _logger.LogInformation($"Family with churchId :{family.ChurchId} and familyId:{family.FamilyId} already exits");
-                return false;
-            }
+            return UpdateTable(_membersTable, member, GetAttributeExists(nameof(member.MemberId)));
         }
 
-        async Task<bool> IDataRepository.UpdateFamily(Family family)
+        async Task<bool> IDataRepository.RemoveMember(string churchId, IEnumerable<string> memberIds)
         {
-            var document = DDBContext.ToDocument(family);
-            var config = new PutItemOperationConfig { ConditionalExpression = GetAttributeExists(nameof(family.FamilyId)) };
-            try
+            var batchWrite = _membersTable.CreateBatchWrite();
+            foreach (var memberId in memberIds)
             {
-                _logger.LogInformation($"Replacing details of family with churchId :{family.ChurchId} and familyId:{family.FamilyId}");
-                await FamiliesTable.PutItemAsync(document, config);
-                return true;
+                batchWrite.AddKeyToDelete(churchId, memberId);
             }
-            catch (ConditionalCheckFailedException)
-            {
-                _logger.LogInformation($"Family with churchId :{family.ChurchId} and familyId:{family.FamilyId} doesn't exits");
-                return false;
-            }
-        }
-
-        async Task<bool> IDataRepository.DeleteFamily(string churchId, string familyId)
-        {
-            var family = new Family { ChurchId = churchId, FamilyId = familyId };
-            var document = DDBContext.ToDocument(family);
-
-            var deletedFamily = await FamiliesTable.DeleteItemAsync(document);
-            return deletedFamily != null;
-        }
-
-        async Task<bool> IDataRepository.RemoveMember(string churchId, string memberId)
-        {
-            var member = new Member { ChurchId = churchId, MemberId = memberId };
-            var document = DDBContext.ToDocument(member);
-
-            var deletedMember = await MembersTable.DeleteItemAsync(document);
-            return deletedMember != null;
+            await batchWrite.ExecuteAsync();
+            return true;
         }
 
         async Task<IEnumerable<Member>> IDataRepository.GetMembers(string churchId, IEnumerable<string> memberIds)
         {
-            var batchGet = MembersTable.CreateBatchGet();
+            var batchGet = _membersTable.CreateBatchGet();
             foreach (var memberId in memberIds)
             {
                 batchGet.AddKey(churchId, memberId);
@@ -118,6 +91,43 @@ namespace parishdirectoryapi.Services
 
             return batchGet.Results.Select(doc => DDBContext.FromDocument<Member>(doc));
         }
+
+        #endregion Members
+
+        #region Family
+
+        async Task<bool> IDataRepository.CreateFamily(string churchId, string familyId)
+        {
+            var family = new Family { ChurchId = churchId, FamilyId = familyId };
+            var document = DDBContext.ToDocument(family);
+            var config = new PutItemOperationConfig { ConditionalExpression = GetAttributeNotExists(nameof(family.FamilyId)) };
+            try
+            {
+                _logger.LogInformation($"Creating family with churchId :{family.ChurchId} and familyId:{family.FamilyId}");
+                await _familiesTable.PutItemAsync(document, config);
+                return true;
+            }
+            catch (ConditionalCheckFailedException)
+            {
+                _logger.LogInformation($"Family with churchId :{family.ChurchId} and familyId:{family.FamilyId} already exits");
+                return false;
+            }
+        }
+
+        Task<bool> IDataRepository.UpdateFamily(Family family)
+        {
+            return UpdateTable(_familiesTable, family, GetAttributeExists(nameof(family.FamilyId)));
+        }
+
+        async Task<bool> IDataRepository.DeleteFamily(string churchId, string familyId)
+        {
+            var family = new Family { ChurchId = churchId, FamilyId = familyId };
+            var document = DDBContext.ToDocument(family);
+
+            var deletedFamily = await _familiesTable.DeleteItemAsync(document);
+            return deletedFamily != null;
+        }
+
 
         async Task<IEnumerable<Family>> IDataRepository.GetFamilies(string churchId)
         {
@@ -142,26 +152,8 @@ namespace parishdirectoryapi.Services
             return family;
         }
 
-        async Task<bool> IDataRepository.UpdateMember(Member member)
-        {
-            var expr = new Expression
-            {
-                ExpressionStatement = "attribute_exists(MemberId)"
-            };
 
-            var document = DDBContext.ToDocument(member);
-            try
-            {
-                await MembersTable.PutItemAsync(document,
-                    new PutItemOperationConfig() { ConditionalExpression = expr });
-                return true;
-            }
-            catch (ConditionalCheckFailedException)
-            {
-                _logger.LogInformation($"Member with id {member.ChurchId} and {member.MemberId} doesnot exists");
-                return false;
-            }
-        }
+        #endregion Family
 
         #region CHURCH
 
@@ -183,7 +175,7 @@ namespace parishdirectoryapi.Services
             try
             {
                 _logger.LogInformation($"Adding a new church with churchId {church.ChurchId}");
-                await ChurchesTable.PutItemAsync(document, config);
+                await _churchesTable.PutItemAsync(document, config);
                 return true;
             }
             catch (ConditionalCheckFailedException)
@@ -193,21 +185,9 @@ namespace parishdirectoryapi.Services
             }
         }
 
-        async Task<bool> IDataRepository.UpdateChurch(Church church)
+        Task<bool> IDataRepository.UpdateChurch(Church church)
         {
-            var document = DDBContext.ToDocument(church);
-            var config = new PutItemOperationConfig { ConditionalExpression = GetAttributeExists(nameof(church.ChurchId)) };
-            try
-            {
-                _logger.LogInformation($"Replacing church with churchId {church.ChurchId}");
-                await ChurchesTable.PutItemAsync(DDBContext.ToDocument(church), config);
-                return true;
-            }
-            catch (ConditionalCheckFailedException)
-            {
-                _logger.LogInformation($"Church with id {church.ChurchId} doesnot exists");
-                return false;
-            }
+            return UpdateTable(_churchesTable, church, GetAttributeExists(nameof(church.ChurchId)));
         }
 
         #endregion CHURCH
@@ -226,6 +206,22 @@ namespace parishdirectoryapi.Services
             {
                 ExpressionStatement = $"attribute_exists({attributeName})"
             };
+        }
+
+        private async Task<bool> UpdateTable<T>(Table table, T item, Expression condtionalExpression)
+        {
+            var document = DDBContext.ToDocument(item);
+            var config = new UpdateItemOperationConfig { ConditionalExpression = condtionalExpression };
+
+            try
+            {
+                await table.UpdateItemAsync(document, config);
+                return true;
+            }
+            catch (ConditionalCheckFailedException)
+            {
+                return false;
+            }
         }
     }
 }
