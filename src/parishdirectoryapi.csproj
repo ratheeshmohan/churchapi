@@ -3,7 +3,7 @@
     <OutputType>exe</OutputType>
   </PropertyGroup>
   <PropertyGroup>
-    <TargetFramework>netcoreapp1.0</TargetFramework>
+    <TargetFramework>netcoreapp1.1</TargetFramework>
     <OutputTypeEx>exe</OutputTypeEx>
   </PropertyGroup>
   <ItemGroup>
@@ -32,5 +32,8 @@
   </ItemGroup>
   <ItemGroup>
     <DotNetCliToolReference Include="Amazon.Lambda.Tools" Version="1.8.0" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Properties\" />
   </ItemGroup>
 </Project>

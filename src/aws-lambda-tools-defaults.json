@@ -12,7 +12,7 @@
 	"profile"     : "admin",
 	"region"      : "ap-southeast-2",
 	"configuration" : "Release",
-	"framework"     : "netcoreapp1.0",
+	"framework"     : "netcoreapp1.1",
 	"s3-prefix"     : "parishdirectoryapi/",
 	"template"      : "serverless.template",
 	"template-parameters" : "ShouldCreateBucket=false;BucketName=parishdirectoryapi-deployment"
