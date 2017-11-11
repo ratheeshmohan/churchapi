@@ -1,15 +1,10 @@
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Logging;
-using System.Net;
-using Amazon.DynamoDBv2.DocumentModel;
 using parishdirectoryapi.Models;
-using Amazon.DynamoDBv2.Model;
 using parishdirectoryapi.Controllers.Actions;
 using parishdirectoryapi.Security;
 using parishdirectoryapi.Controllers.Models;
 using parishdirectoryapi.Services;
-using parishdirectoryapi.Extenstions;
 using System.Linq;
 using System.Collections.Generic;
 
@@ -20,14 +15,9 @@ namespace parishdirectoryapi.Controllers
     /// </summary>
     [Route("api/family")]
     [ValidateModel]
-    public class FamilyController : Controller
+    public class FamilyController : BaseController
     {
-        private IDataRepository _dataRepository;
-
-        public FamilyController(IDataRepository dataRepository)
-        {
-            _dataRepository = dataRepository;
-        }
+        public FamilyController(IDataRepository dataRepository) : base(dataRepository) { }
 
         [HttpGet]
         public async Task<IActionResult> Get()
@@ -36,19 +26,22 @@ namespace parishdirectoryapi.Controllers
             var churchId = userContext.ChurchId;
             var familyId = userContext.FamilyId;
 
-            var family = await _dataRepository.GetFamily(churchId, familyId);
+            var family = await DataRepository.GetFamily(churchId, familyId);
             if (family == null)
             {
                 return NotFound();
             }
 
-            var familyVM = new FamilyViewModel();
-            familyVM.Members = new MemberViewModel[0];
-            familyVM.Profile = new FamilyProfile
+            var familyVM = new Models.Family()
             {
-                Address = family.Address,
-                HomeParish = family.HomeParish,
-                PhotoUrl = family.PhotoUrl,
+                FamilyId = familyId,
+                Members = new FamilyMemeber[0],
+                FamilyProfile = new FamilyProfile
+                {
+                    Address = family.Address,
+                    HomeParish = family.HomeParish,
+                    PhotoUrl = family.PhotoUrl,
+                }
             };
 
             if (family.Members != null)
@@ -60,7 +53,7 @@ namespace parishdirectoryapi.Controllers
                 }
                 if (members2RoleMap.Keys.Any())
                 {
-                    var members = await _dataRepository.GetMembers(churchId, members2RoleMap.Keys);
+                    var members = await DataRepository.GetMembers(churchId, members2RoleMap.Keys);
                     familyVM.Members = members.Select(m =>
                     {
                         var vm = m.ToMemberViewModel();
@@ -70,12 +63,6 @@ namespace parishdirectoryapi.Controllers
                 }
             }
             return Ok(familyVM);
-        }
-
-        private UserContext GetUserContext()
-        {
-            //TEMP: read from user claims
-            return new UserContext { FamilyId = "fam0001", ChurchId = "smioc", LoginId = "ratheeshmohan@gmail.com" };
         }
     }
 }

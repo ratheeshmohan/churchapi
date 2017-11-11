@@ -1,5 +1,4 @@
 using System.ComponentModel.DataAnnotations;
-using Amazon.DynamoDBv2.DataModel;
 
 namespace parishdirectoryapi.Models
 {

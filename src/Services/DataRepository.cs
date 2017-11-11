@@ -8,7 +8,6 @@ using Amazon.DynamoDBv2.Model;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using System.Collections.Generic;
-using System;
 using System.Linq;
 using Amazon.Util;
 
@@ -96,9 +95,8 @@ namespace parishdirectoryapi.Services
 
         #region Family
 
-        async Task<bool> IDataRepository.CreateFamily(string churchId, string familyId)
+        async Task<bool> IDataRepository.AddFamily(Family family)
         {
-            var family = new Family { ChurchId = churchId, FamilyId = familyId };
             var document = DDBContext.ToDocument(family);
             var config = new PutItemOperationConfig { ConditionalExpression = GetAttributeNotExists(nameof(family.FamilyId)) };
             try

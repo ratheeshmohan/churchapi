@@ -2,9 +2,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using System.Net;
-using Amazon.DynamoDBv2.DocumentModel;
 using parishdirectoryapi.Models;
-using Amazon.DynamoDBv2.Model;
 using parishdirectoryapi.Controllers.Actions;
 using parishdirectoryapi.Security;
 using parishdirectoryapi.Controllers.Models;
@@ -19,15 +17,15 @@ namespace parishdirectoryapi.Controllers
     /// </summary>
     [Route("api/families")]
     [ValidateModel]
-    public class FamiliesController : Controller
+    public class FamiliesController : BaseController
     {
-        ILogger Logger { get; }
-        private IDataRepository _dataRepository;
+        private ILogger _logger { get; }
+        private ILoginProvider _loginProvider;
 
-        public FamiliesController(IDataRepository dataRepository, ILogger<FamilyController> logger)
+        public FamiliesController(IDataRepository dataRepository, ILoginProvider loginProvider, ILogger<FamilyController> logger) : base(dataRepository)
         {
-            _dataRepository = dataRepository;
-            Logger = logger;
+            _loginProvider = loginProvider;
+            _logger = logger;
         }
 
         //TODO:
@@ -58,56 +56,83 @@ namespace parishdirectoryapi.Controllers
                    */
         [HttpPost]
         //[Admin Only ROLE]
-        public async Task<IActionResult> Post([FromBody]Models.CreateFamilyRequest request)
+        public async Task<IActionResult> Post([FromBody] Models.Family family)
         {
             var churchId = GetUserContext().ChurchId;
-            var family = new Family
+
+            var context = $"ChurchId = {churchId} FamilyId = {family.FamilyId} LoginEmail = {family.LoginEmail}";
+            _logger.LogInformation($"Creating new family using {context}");
+
+            var familyDO = new parishdirectoryapi.Models.Family()
             {
                 ChurchId = churchId,
-                FamilyId = request.FamilyId,
-                LoginId = request.LoginEmail
+                FamilyId = family.FamilyId
             };
 
-            Logger.LogInformation($"Creating a new family using ChurchId {family.ChurchId} and FamilyId {family.FamilyId}");
-
-            var createUserTask = CreateIAMUser(request.LoginEmail, family.FamilyId);
-            var addFamilyTask = _dataRepository.CreateFamily(family.ChurchId, family.FamilyId);
-
-            await Task.WhenAll(createUserTask, addFamilyTask);
-
-            string errorResult = $"Family with Id {family.FamilyId} and LoginEmail {request.LoginEmail} already exists";
-            if (createUserTask.Result && addFamilyTask.Result)
+            if (family.FamilyProfile != null)
             {
-                Logger.LogInformation($"Creating family completed for ChurchId {family.ChurchId} and FamilyId {family.FamilyId}");
+                familyDO.PhotoUrl = family.FamilyProfile.PhotoUrl;
+                familyDO.Address = family.FamilyProfile.Address;
+                familyDO.HomeParish = family.FamilyProfile.HomeParish;
+            }
+
+            IEnumerable<Member> membersDO = null;
+            if (family.Members != null)
+            {
+                membersDO = family.Members.Select(m =>
+               {
+                   var member = CreateMember(m);
+                   member.ChurchId = churchId;
+                   member.FamilyId = family.FamilyId;
+                   return member;
+               });
+
+                familyDO.Members = membersDO.Zip(family.Members, (a, b) => new FamilyMember { MemberId = a.MemberId, Role = b.Role }).ToList();
+            }
+
+            var createFamilyT = DataRepository.AddFamily(familyDO);
+            var createLoginT = _loginProvider.CreateLogin(family.LoginEmail, new LoginMetadata { FamlyId = family.FamilyId });
+
+            await Task.WhenAll(createLoginT, createFamilyT);
+
+            if (createLoginT.Result && createFamilyT.Result)
+            {
+                if (membersDO != null)
+                {
+                    await DataRepository.AddMembers(membersDO);
+                }
+                _logger.LogInformation($"Creating new family Succed using {context}");
                 return Created($"/api/families/{family.FamilyId}", "");
             }
-            else if (createUserTask.Result && !addFamilyTask.Result)
-            {
-                await DeleteIAMUser(request.LoginEmail, family.FamilyId);
 
-                errorResult = $"FamilyId {family.FamilyId} already exists";
-                Logger.LogInformation($"Rolled back added IAM User ChurchId {family.ChurchId} and LoginEmail {request.LoginEmail}");
-            }
-            else if (!createUserTask.Result && addFamilyTask.Result)
+            //Cleanups
+            _logger.LogError($"Failed to create new family using {context}");
+            if (createLoginT.Result)
             {
-                var isDeleted = await _dataRepository.DeleteFamily(family.ChurchId, family.FamilyId);
+                var hasRollbacked = await _loginProvider.DeleteLogin(family.LoginEmail);
+                if (!hasRollbacked)
+                {
+                    _logger.LogError($"Failed to rollback  created login");
+                }
+            }
+
+            if (createFamilyT.Result)
+            {
+                var isDeleted = await DataRepository.DeleteFamily(churchId, family.FamilyId);
                 if (!isDeleted)
                 {
-                    Logger.LogError($"Failed to rollback the created used. Failed to delete family from database.");
+                    _logger.LogError($"Failed to rollback  add family from database");
                 }
-                errorResult = $"LoginEmail {request.LoginEmail} already exists";
-                Logger.LogInformation($"Rolled back added family ChurchId {family.ChurchId} and FamilyId {family.FamilyId}");
             }
-
-            Logger.LogInformation($"Creating family failed for ChurchId {family.ChurchId} and FamilyId {family.FamilyId}. {errorResult}");
-            return BadRequest(errorResult);
+            return BadRequest();
         }
 
         [HttpPost("{familyId}/updateprofile")]
         public async Task<IActionResult> UpdateProfile(string familyId, [FromBody]FamilyProfile profile)
         {
             var churchId = GetUserContext().ChurchId;
-            var family = new Family()
+
+            var family = new parishdirectoryapi.Models.Family()
             {
                 ChurchId = churchId,
                 FamilyId = familyId,
@@ -116,59 +141,46 @@ namespace parishdirectoryapi.Controllers
                 HomeParish = profile.HomeParish
             };
 
-            var result = await _dataRepository.UpdateFamily(family);
-            if (!result)
-            {
-                return StatusCode((int)HttpStatusCode.InternalServerError);
-            }
-            return Ok();
+            var result = await DataRepository.UpdateFamily(family);
+            return result ? Ok() : StatusCode((int)HttpStatusCode.InternalServerError);
         }
 
         [HttpPost("{familyId}/addmembers")]
-        public async Task<IActionResult> AddMembers(string familyId, [FromBody]MemberViewModel[] members)
+        public async Task<IActionResult> AddMembers(string familyId, [FromBody]FamilyMemeber[] members)
         {
             var churchId = GetUserContext().ChurchId;
-            var family = await _dataRepository.GetFamily(churchId, familyId);
-            if (family == null)
+            var familyDO = await DataRepository.GetFamily(churchId, familyId);
+            if (familyDO == null)
             {
                 return BadRequest();
             }
 
-            var map = new Dictionary<MemberViewModel, Member>();
-            foreach (var m in members)
+            var membersDO = members.Select(m =>
             {
                 var member = CreateMember(m);
-                member.FamilyId = familyId;
                 member.ChurchId = churchId;
-                map[m] = member;
-            }
+                member.FamilyId = familyId;
+                return member;
+            });
 
-            var result = await _dataRepository.AddMembers(map.Values);
-            if (!result)
+            if (familyDO.Members == null)
             {
-                return StatusCode((int)HttpStatusCode.InternalServerError);
+                familyDO.Members = new List<FamilyMember>();
             }
+            familyDO.Members.AddRange(membersDO.Zip(members, (a, b) => new FamilyMember { MemberId = a.MemberId, Role = b.Role }));
 
-            if (family.Members == null)
-            {
-                family.Members = new List<FamilyMember>();
-            }
-            foreach (var keyval in map)
-            {
-                family.Members.Add(new FamilyMember { MemberId = keyval.Value.MemberId, Role = keyval.Key.Role });
-            }
+            var updateTask = DataRepository.UpdateFamily(familyDO);
+            var addMemberTask = DataRepository.AddMembers(membersDO);
+            await Task.WhenAll(updateTask, addMemberTask);
 
-            //Update Family.
-            await _dataRepository.UpdateFamily(family);
             return Ok();
         }
-
 
         [HttpPost("{familyId}/removemembers")]
         public async Task<IActionResult> RemoveMembers(string familyId, [FromBody]string[] memberIds)
         {
             var churchId = GetUserContext().ChurchId;
-            var family = await _dataRepository.GetFamily(churchId, familyId);
+            var family = await DataRepository.GetFamily(churchId, familyId);
             if (family == null || family.Members == null)
             {
                 return BadRequest();
@@ -195,18 +207,18 @@ namespace parishdirectoryapi.Controllers
 
             //Update Family.
             family.Members = keep;
-            var updateTask = _dataRepository.UpdateFamily(family);
+            var updateTask = DataRepository.UpdateFamily(family);
+            var removeTask = DataRepository.RemoveMember(churchId, remove);
 
-            var removeTask = _dataRepository.RemoveMember(churchId, remove);
             await Task.WhenAll(updateTask, removeTask);
             return Ok();
         }
 
         [HttpPost("{familyId}/updatemembers")]
-        public async Task<IActionResult> UpdateMembers(string familyId, [FromBody]MemberViewModel[] members)
+        public async Task<IActionResult> UpdateMembers(string familyId, [FromBody]FamilyMemeber[] members)
         {
             var churchId = GetUserContext().ChurchId;
-            var family = await _dataRepository.GetFamily(churchId, familyId);
+            var family = await DataRepository.GetFamily(churchId, familyId);
             if (family == null || family.Members == null)
             {
                 return BadRequest();
@@ -218,7 +230,7 @@ namespace parishdirectoryapi.Controllers
                 return BadRequest();
             }
 
-            var modelMembers = members.Select(m =>
+            var membersDO = members.Select(m =>
             {
                 var member = m.ToMember();
                 member.FamilyId = familyId;
@@ -226,33 +238,22 @@ namespace parishdirectoryapi.Controllers
                 return member;
             });
 
-            await Task.WhenAll(modelMembers.Select(m => _dataRepository.UpdateMember(m)));
+            await Task.WhenAll(membersDO.Select(m => DataRepository.UpdateMember(m)));
             return Ok();
         }
-
-        private Member CreateMember(MemberViewModel memberVM)
+        
+        private Member CreateMember(FamilyMemeber memberVM)
         {
             var member = memberVM.ToMember();
             member.MemberId = System.Guid.NewGuid().ToString();
             return member;
         }
 
-        private Task<bool> CreateIAMUser(string email, string familyId)
-        {
-            //TODO
-            return Task.FromResult(true);
-        }
-
-        private Task<bool> DeleteIAMUser(string email, string familyId)
-        {
-            //TODO
-            return Task.FromResult(true);
-        }
-
-        private UserContext GetUserContext()
+        private new UserContext GetUserContext() //Temp: use base class
         {
             //TEMP: read from user claims
             return new UserContext { FamilyId = null, ChurchId = "smioc", LoginId = "admin@gmail.com" };
         }
     }
 }
+ 

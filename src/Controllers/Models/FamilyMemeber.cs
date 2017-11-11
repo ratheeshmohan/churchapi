@@ -1,9 +1,8 @@
-using System.Collections.Generic;
 using parishdirectoryapi.Models;
 
 namespace parishdirectoryapi.Controllers.Models
 {
-    public class MemberViewModel
+    public class FamilyMemeber
     {
         public string MemberId { get; set; }
         public string FirstName { get; set; }

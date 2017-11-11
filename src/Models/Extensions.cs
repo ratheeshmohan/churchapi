@@ -1,8 +1,3 @@
-using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
-using Amazon.DynamoDBv2.DataModel;
-using parishdirectoryapi.Models;
-
 namespace parishdirectoryapi.Extenstions
 {
     public static class Extenstions
