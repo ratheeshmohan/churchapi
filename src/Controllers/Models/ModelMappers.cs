@@ -4,9 +4,9 @@ namespace parishdirectoryapi.Controllers.Models
 {
     public static class ModelMappers
     {
-        public static FamilyMemeber ToMemberViewModel(this Member member)
+        public static MemberViewModel ToMemberViewModel(this Member member)
         {
-            return new FamilyMemeber
+            return new MemberViewModel
             {
                 MemberId = member.MemberId,
                 FirstName = member.FirstName,
@@ -23,7 +23,7 @@ namespace parishdirectoryapi.Controllers.Models
             };
         }
 
-        public static Member ToMember(this FamilyMemeber member)
+        public static Member ToMember(this MemberViewModel member)
         {
             return new Member
             {

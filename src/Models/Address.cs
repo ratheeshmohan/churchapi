@@ -7,6 +7,6 @@ namespace parishdirectoryapi.Models
         public string Suburb { get; set; }
         public string State { get; set; }
         public string Country { get; set; }
-        public long Pincode { get; set; }
+        public long? Pincode { get; set; }
     }
 }

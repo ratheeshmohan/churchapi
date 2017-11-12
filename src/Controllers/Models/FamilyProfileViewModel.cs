@@ -2,7 +2,7 @@
 
 namespace parishdirectoryapi.Controllers.Models
 {
-    public class FamilyProfile
+    public class FamilyProfileViewModel
     {
         public Address Address { get; set; }
         public Parish HomeParish { get; set; }
