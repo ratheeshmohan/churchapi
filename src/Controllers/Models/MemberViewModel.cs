@@ -14,7 +14,7 @@ namespace parishdirectoryapi.Controllers.Models
         [Required(AllowEmptyStrings = true)]
         public string LastName { get; set; }
         [Required]
-        public Sex Gender { get; set; }
+        public Gender Gender { get; set; }
 
         public string NickName { get; set; }
         public string Phone { get; set; }

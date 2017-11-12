@@ -1,6 +1,6 @@
 namespace parishdirectoryapi.Models
 {
-    public enum Sex
+    public enum Gender
     {
         Male,
         Female
@@ -15,7 +15,7 @@ namespace parishdirectoryapi.Models
         public string MiddleName { get; set; }
         public string LastName { get; set; }
         public string NickName { get; set; }
-        public Sex Gender { get; set; }
+        public Gender Gender { get; set; }
         public string Phone { get; set; }
         public string EmailId { get; set; }
         public string DateOfBirth { get; set; }

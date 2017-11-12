@@ -59,61 +59,31 @@ namespace parishdirectoryapi.Controllers
         //[Admin Only ROLE]
         public async Task<IActionResult> Post([FromBody] FamilyViewModel familyViewModel)
         {
-            var churchId = GetUserContext().ChurchId;
+             var context = GetUserContext();
+            var churchId = context.ChurchId;
 
-            var context = $"ChurchId = {churchId} FamilyId = {familyViewModel.FamilyId} " +
-                $"LoginEmail = {familyViewModel.LoginEmail}";
             _logger.LogInformation($"Creating new family using {context}");
 
-            var family = new Family()
-            {
-                ChurchId = churchId,
-                LoginId = familyViewModel.LoginEmail,
-                FamilyId = familyViewModel.FamilyId
-            };
-
-            if (familyViewModel.Profile != null)
-            {
-                family.PhotoUrl = familyViewModel.Profile.PhotoUrl;
-                family.Address = familyViewModel.Profile.Address;
-                family.HomeParish = familyViewModel.Profile.HomeParish;
-            }
-
-            IEnumerable<Member> members = null;
             if (familyViewModel.Members != null)
             {
                 foreach (var m in familyViewModel.Members)
                 {
                     m.Member.MemberId = GetUniqueMemberId();
                 }
-
-                family.Members = familyViewModel.Members.Select(
-                   m => new FamilyMember
-                   {
-                       MemberId = m.Member.MemberId,
-                       Role = m.Role
-                   }).ToList();
-
-                members = familyViewModel.Members.Select(m =>
-                {
-                    var member = m.Member.ToMember();
-                    member.ChurchId = churchId;
-                    member.FamilyId = familyViewModel.FamilyId;
-                    return member;
-                });
             }
 
+            var family = familyViewModel.ToFamily(churchId);
             var createFamilyT = DataRepository.AddFamily(family);
+
             var createLoginT = _loginProvider.CreateLogin(familyViewModel.LoginEmail,
                 new LoginMetadata { FamlyId = familyViewModel.FamilyId });
 
             await Task.WhenAll(createLoginT, createFamilyT);
+
             if (createLoginT.Result && createFamilyT.Result)
             {
-                if (members != null)
-                {
-                    await DataRepository.AddMembers(members);
-                }
+                await InsertMembers(churchId, familyViewModel.FamilyId, familyViewModel.Members);
+
                 _logger.LogInformation($"Creating new family Succed using {context}");
                 return Created($"/api/families/{familyViewModel.FamilyId}", "");
             }
@@ -185,6 +155,20 @@ namespace parishdirectoryapi.Controllers
                     Role = m.Role
                 }));
 
+            var updateTask = DataRepository.UpdateFamily(family);
+            var addMemberTask = InsertMembers(churchId, familyId, familyMembers);
+            await Task.WhenAll(updateTask, addMemberTask);
+            return Ok();
+        }
+
+
+        private async Task<bool> InsertMembers(string churchId, string familyId,
+            [FromBody]IEnumerable<FamilyMemberViewModel> familyMembers)
+        {
+            if (familyMembers == null)
+            {
+                return true;
+            }
             var members = familyMembers.Select(m =>
             {
                 var member = m.Member.ToMember();
@@ -193,11 +177,9 @@ namespace parishdirectoryapi.Controllers
                 return member;
             });
 
-            var updateTask = DataRepository.UpdateFamily(family);
-            var addMemberTask = DataRepository.AddMembers(members);
-            await Task.WhenAll(updateTask, addMemberTask);
-            return Ok();
+            return await DataRepository.AddMembers(members);
         }
+
 
         [HttpPost("{familyId}/removemembers")]
         public async Task<IActionResult> RemoveMembers(string familyId, [FromBody]string[] memberIds)
