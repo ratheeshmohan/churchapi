@@ -135,7 +135,8 @@ namespace parishdirectoryapi.Controllers
         }
 
         [HttpPost("{familyId}/updateprofile")]
-        public async Task<IActionResult> UpdateProfile(string familyId, [FromBody]FamilyProfileViewModel profile)
+        public async Task<IActionResult> UpdateProfile(string familyId,
+            [FromBody]FamilyProfileViewModel profile)
         {
             var churchId = GetUserContext().ChurchId;
             var family = new Family()
@@ -152,7 +153,8 @@ namespace parishdirectoryapi.Controllers
         }
 
         [HttpPost("{familyId}/addmembers")]
-        public async Task<IActionResult> AddMembers(string familyId, [FromBody]MemberViewModel[] membersPayload)
+        public async Task<IActionResult> AddMembers(string familyId,
+            [FromBody]FamilyMemberViewModel[] familyMembers)
         {
             var churchId = GetUserContext().ChurchId;
             var family = await DataRepository.GetFamily(churchId, familyId);
@@ -161,9 +163,9 @@ namespace parishdirectoryapi.Controllers
                 return BadRequest();
             }
 
-            var members = membersPayload.Select(m =>
+            var members = familyMembers.Select(m =>
             {
-                var member = CreateMember(m);
+                var member = CreateMember(m.Member);
                 member.ChurchId = churchId;
                 member.FamilyId = familyId;
                 return member;
@@ -174,7 +176,7 @@ namespace parishdirectoryapi.Controllers
                 family.Members = new List<FamilyMember>();
             }
             family.Members.AddRange(
-                members.Zip(membersPayload, (a, b) => new FamilyMember { MemberId = a.MemberId, Role = b.Role }));
+                members.Zip(familyMembers, (a, b) => new FamilyMember { MemberId = a.MemberId, Role = b.Role }));
 
             var updateTask = DataRepository.UpdateFamily(family);
             var addMemberTask = DataRepository.AddMembers(members);

@@ -15,8 +15,6 @@ namespace parishdirectoryapi.Controllers.Models
         public string LastName { get; set; }
         [Required]
         public Sex Gender { get; set; }
-        [Required]
-        public FamilyRole Role { get; set; }
 
         public string NickName { get; set; }
         public string Phone { get; set; }

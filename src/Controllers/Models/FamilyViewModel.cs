@@ -6,7 +6,9 @@ namespace parishdirectoryapi.Controllers.Models
 {
     public class FamilyMemberViewModel
     {
+        [Required]
         public FamilyRole Role { get; set; }
+        [Required]
         public MemberViewModel Member { get; set; }
     }
 
