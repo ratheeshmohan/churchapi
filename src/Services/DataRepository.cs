@@ -168,11 +168,16 @@ namespace parishdirectoryapi.Services
         async Task<bool> IDataRepository.AddChurch(Church church)
         {
             var document = DDBContext.ToDocument(church);
-            var config = new PutItemOperationConfig { ConditionalExpression = GetAttributeNotExists(nameof(church.ChurchId)) };
+            var config = new PutItemOperationConfig
+            {
+                ConditionalExpression =
+                GetAttributeNotExists(nameof(church.ChurchId))
+            };
 
             try
             {
                 _logger.LogInformation($"Adding a new church with churchId {church.ChurchId}");
+
                 await _churchesTable.PutItemAsync(document, config);
                 return true;
             }

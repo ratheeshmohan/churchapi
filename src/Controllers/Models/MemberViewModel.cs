@@ -9,9 +9,9 @@ namespace parishdirectoryapi.Controllers.Models
         public string MemberId { get; set; }
         [Required]
         public string FirstName { get; set; }
-        [Required]
+        [Required(AllowEmptyStrings = true)]
         public string MiddleName { get; set; }
-        [Required]
+        [Required(AllowEmptyStrings = true)]
         public string LastName { get; set; }
         [Required]
         public Sex Gender { get; set; }

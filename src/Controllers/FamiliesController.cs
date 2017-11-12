@@ -68,6 +68,7 @@ namespace parishdirectoryapi.Controllers
             var family = new Family()
             {
                 ChurchId = churchId,
+                LoginId = familyViewModel.LoginEmail,
                 FamilyId = familyViewModel.FamilyId
             };
 
@@ -81,9 +82,14 @@ namespace parishdirectoryapi.Controllers
             IEnumerable<Member> membersDO = null;
             if (familyViewModel.Members != null)
             {
+                foreach (var m in familyViewModel.Members)
+                {
+                    m.Member.MemberId = GetUniqueMemberId();
+                }
+
                 membersDO = familyViewModel.Members.Select(m =>
                {
-                   var member = CreateMember(m.Member);
+                   var member = m.Member.ToMember();
                    member.ChurchId = churchId;
                    member.FamilyId = familyViewModel.FamilyId;
                    return member;
@@ -163,9 +169,14 @@ namespace parishdirectoryapi.Controllers
                 return BadRequest();
             }
 
+            foreach (var m in familyMembers)
+            {
+                m.Member.MemberId = GetUniqueMemberId();
+            }
+
             var members = familyMembers.Select(m =>
             {
-                var member = CreateMember(m.Member);
+                var member = m.Member.ToMember();
                 member.ChurchId = churchId;
                 member.FamilyId = familyId;
                 return member;
@@ -298,11 +309,9 @@ namespace parishdirectoryapi.Controllers
             return Ok(familyVM);
         }
 
-        private Member CreateMember(MemberViewModel memberViewModel)
+        private string GetUniqueMemberId()
         {
-            var member = memberViewModel.ToMember();
-            member.MemberId = System.Guid.NewGuid().ToString();
-            return member;
+            return System.Guid.NewGuid().ToString();
         }
 
         private new UserContext GetUserContext() //Temp: use base class
@@ -312,4 +321,3 @@ namespace parishdirectoryapi.Controllers
         }
     }
 }
- 
