@@ -39,6 +39,7 @@ namespace parishdirectoryapi
             // Add S3 to the ASP.NET Core dependency injection framework.
             services.AddAWSService<Amazon.S3.IAmazonS3>();
             services.AddScoped<IDataRepository, DataRepository>();
+            services.AddScoped<ILoginProvider, CognitoLoginProvider>();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline
