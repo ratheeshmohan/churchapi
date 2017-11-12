@@ -79,7 +79,7 @@ namespace parishdirectoryapi.Controllers
                 family.HomeParish = familyViewModel.Profile.HomeParish;
             }
 
-            IEnumerable<Member> membersDO = null;
+            IEnumerable<Member> members = null;
             if (familyViewModel.Members != null)
             {
                 foreach (var m in familyViewModel.Members)
@@ -87,20 +87,20 @@ namespace parishdirectoryapi.Controllers
                     m.Member.MemberId = GetUniqueMemberId();
                 }
 
-                membersDO = familyViewModel.Members.Select(m =>
-               {
-                   var member = m.Member.ToMember();
-                   member.ChurchId = churchId;
-                   member.FamilyId = familyViewModel.FamilyId;
-                   return member;
-               });
+                family.Members = familyViewModel.Members.Select(
+                   m => new FamilyMember
+                   {
+                       MemberId = m.Member.MemberId,
+                       Role = m.Role
+                   }).ToList();
 
-                family.Members = membersDO.Zip(familyViewModel.Members,
-                    (a, b) => new FamilyMember
-                    {
-                        MemberId = a.MemberId,
-                        Role = b.Role
-                    }).ToList();
+                members = familyViewModel.Members.Select(m =>
+                {
+                    var member = m.Member.ToMember();
+                    member.ChurchId = churchId;
+                    member.FamilyId = familyViewModel.FamilyId;
+                    return member;
+                });
             }
 
             var createFamilyT = DataRepository.AddFamily(family);
@@ -110,9 +110,9 @@ namespace parishdirectoryapi.Controllers
             await Task.WhenAll(createLoginT, createFamilyT);
             if (createLoginT.Result && createFamilyT.Result)
             {
-                if (membersDO != null)
+                if (members != null)
                 {
-                    await DataRepository.AddMembers(membersDO);
+                    await DataRepository.AddMembers(members);
                 }
                 _logger.LogInformation($"Creating new family Succed using {context}");
                 return Created($"/api/families/{familyViewModel.FamilyId}", "");
@@ -174,6 +174,17 @@ namespace parishdirectoryapi.Controllers
                 m.Member.MemberId = GetUniqueMemberId();
             }
 
+            if (family.Members == null)
+            {
+                family.Members = new List<FamilyMember>();
+            }
+            family.Members.AddRange(
+                familyMembers.Select(m => new FamilyMember
+                {
+                    MemberId = m.Member.MemberId,
+                    Role = m.Role
+                }));
+
             var members = familyMembers.Select(m =>
             {
                 var member = m.Member.ToMember();
@@ -181,13 +192,6 @@ namespace parishdirectoryapi.Controllers
                 member.FamilyId = familyId;
                 return member;
             });
-
-            if (family.Members == null)
-            {
-                family.Members = new List<FamilyMember>();
-            }
-            family.Members.AddRange(
-                members.Zip(familyMembers, (a, b) => new FamilyMember { MemberId = a.MemberId, Role = b.Role }));
 
             var updateTask = DataRepository.UpdateFamily(family);
             var addMemberTask = DataRepository.AddMembers(members);
