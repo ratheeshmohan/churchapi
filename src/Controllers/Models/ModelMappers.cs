@@ -1,5 +1,4 @@
 using parishdirectoryapi.Models;
-using System.Collections.Generic;
 using System.Linq;
 
 namespace parishdirectoryapi.Controllers.Models

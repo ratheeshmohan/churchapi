@@ -1,29 +1,31 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Net;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
-using System.Net;
-using parishdirectoryapi.Models;
 using parishdirectoryapi.Controllers.Actions;
-using parishdirectoryapi.Security;
 using parishdirectoryapi.Controllers.Models;
+using parishdirectoryapi.Models;
+using parishdirectoryapi.Security;
 using parishdirectoryapi.Services;
-using System.Linq;
-using System.Collections.Generic;
+// ReSharper disable PossibleMultipleEnumeration
 
 namespace parishdirectoryapi.Controllers
 {
     /// <summary>
     /// 
     /// </summary>
-    [Route("api/families")]
+    [Route("families")]
     [ValidateModel]
     public class FamiliesController : BaseController
     {
-        private ILogger _logger { get; }
-        private ILoginProvider _loginProvider;
+        private readonly ILogger _logger;
+        private readonly ILoginProvider _loginProvider;
 
         public FamiliesController(IDataRepository dataRepository, ILoginProvider loginProvider,
-            ILogger<FamiliesController> logger) : base(dataRepository)
+            ILogger logger) : base(dataRepository)
         {
             _loginProvider = loginProvider;
             _logger = logger;
@@ -57,10 +59,9 @@ namespace parishdirectoryapi.Controllers
                    */
         [HttpPost]
         //[Admin Only ROLE]
-        public async Task<IActionResult> Post([FromBody] FamilyViewModel familyViewModel)
+        public async Task<IActionResult> Post(string churchId, [FromBody] FamilyViewModel familyViewModel)
         {
-             var context = GetUserContext();
-            var churchId = context.ChurchId;
+            var context = GetUserContext();
 
             _logger.LogInformation($"Creating new family using {context}");
 
@@ -75,8 +76,14 @@ namespace parishdirectoryapi.Controllers
             var family = familyViewModel.ToFamily(churchId);
             var createFamilyT = DataRepository.AddFamily(family);
 
-            var createLoginT = _loginProvider.CreateLogin(familyViewModel.LoginEmail,
-                new LoginMetadata { FamlyId = familyViewModel.FamilyId });
+            var createLoginT = _loginProvider.CreateLogin(
+                new User
+                {
+                    LoginId = familyViewModel.LoginEmail,
+                    ChurchId =churchId,
+                    FamlyId = familyViewModel.FamilyId,
+                    Email = familyViewModel.LoginEmail
+                });
 
             await Task.WhenAll(createLoginT, createFamilyT);
 
@@ -111,11 +118,10 @@ namespace parishdirectoryapi.Controllers
         }
 
         [HttpPost("{familyId}/updateprofile")]
-        public async Task<IActionResult> UpdateProfile(string familyId,
-            [FromBody]FamilyProfileViewModel profile)
+        public async Task<IActionResult> UpdateProfile(string churchId, string familyId,
+            [FromBody] FamilyProfileViewModel profile)
         {
-            var churchId = GetUserContext().ChurchId;
-            var family = new Family()
+            var family = new Family
             {
                 ChurchId = churchId,
                 FamilyId = familyId,
@@ -129,10 +135,9 @@ namespace parishdirectoryapi.Controllers
         }
 
         [HttpPost("{familyId}/addmembers")]
-        public async Task<IActionResult> AddMembers(string familyId,
-            [FromBody]FamilyMemberViewModel[] familyMembers)
+        public async Task<IActionResult> AddMembers(string churchId, string familyId,
+            [FromBody] FamilyMemberViewModel[] familyMembers)
         {
-            var churchId = GetUserContext().ChurchId;
             var family = await DataRepository.GetFamily(churchId, familyId);
             if (family == null)
             {
@@ -161,11 +166,10 @@ namespace parishdirectoryapi.Controllers
             return Ok();
         }
 
-
         private async Task<bool> InsertMembers(string churchId, string familyId,
-            [FromBody]IEnumerable<FamilyMemberViewModel> familyMembers)
+             IEnumerable<FamilyMemberViewModel> familyMembers)
         {
-            if (familyMembers == null)
+            if (!familyMembers.Any())
             {
                 return true;
             }
@@ -180,14 +184,11 @@ namespace parishdirectoryapi.Controllers
             return await DataRepository.AddMembers(members);
         }
 
-
         [HttpPost("{familyId}/removemembers")]
-        public async Task<IActionResult> RemoveMembers(string familyId, [FromBody]string[] memberIds)
+        public async Task<IActionResult> RemoveMembers(string churchId, string familyId, [FromBody] string[] memberIds)
         {
-            var churchId = GetUserContext().ChurchId;
-
             var family = await DataRepository.GetFamily(churchId, familyId);
-            if (family == null || family.Members == null)
+            if (family?.Members == null)
             {
                 return BadRequest();
             }
@@ -221,22 +222,22 @@ namespace parishdirectoryapi.Controllers
         }
 
         [HttpPost("{familyId}/updatemembers")]
-        public async Task<IActionResult> UpdateMembers(string familyId, [FromBody]MemberViewModel[] members)
+        public async Task<IActionResult> UpdateMembers(string churchId, string familyId,
+            [FromBody] MemberViewModel[] memberViewModels)
         {
-            var churchId = GetUserContext().ChurchId;
             var family = await DataRepository.GetFamily(churchId, familyId);
-            if (family == null || family.Members == null)
+            if (family?.Members == null)
             {
                 return BadRequest();
             }
 
             var familyMembers = family.Members.Select(m => m.MemberId).ToList();
-            if (!members.All(m => !string.IsNullOrEmpty(m.MemberId) && familyMembers.Contains(m.MemberId)))
+            if (!memberViewModels.All(m => !string.IsNullOrEmpty(m.MemberId) && familyMembers.Contains(m.MemberId)))
             {
                 return BadRequest();
             }
 
-            var membersDO = members.Select(m =>
+            var members = memberViewModels.Select(m =>
             {
                 var member = m.ToMember();
                 member.FamilyId = familyId;
@@ -244,23 +245,20 @@ namespace parishdirectoryapi.Controllers
                 return member;
             });
 
-            await Task.WhenAll(membersDO.Select(m => DataRepository.UpdateMember(m)));
+            await Task.WhenAll(members.Select(m => DataRepository.UpdateMember(m)));
             return Ok();
         }
 
         [HttpGet("{familyId}")]
-        public async Task<IActionResult> Get(string familyId)
+        public async Task<IActionResult> Get(string churchId, string familyId)
         {
-            var userContext = GetUserContext();
-            var churchId = userContext.ChurchId;
-
             var family = await DataRepository.GetFamily(churchId, familyId);
             if (family == null)
             {
                 return NotFound();
             }
 
-            var familyVM = new FamilyViewModel()
+            var familyViewModel = new FamilyViewModel
             {
                 FamilyId = familyId,
                 Members = new FamilyMemberViewModel[0],
@@ -268,39 +266,34 @@ namespace parishdirectoryapi.Controllers
                 {
                     Address = family.Address,
                     HomeParish = family.HomeParish,
-                    PhotoUrl = family.PhotoUrl,
+                    PhotoUrl = family.PhotoUrl
                 }
             };
 
-            if (family.Members != null)
+            if (family.Members == null) return Ok(familyViewModel);
+
+            var members2RoleMap = new Dictionary<string, FamilyRole>();
+            foreach (var m in family.Members)
             {
-                var members2RoleMap = new Dictionary<string, FamilyRole>();
-                foreach (var m in family.Members)
-                {
-                    members2RoleMap[m.MemberId] = m.Role;
-                }
-                if (members2RoleMap.Keys.Any())
-                {
-                    var members = await DataRepository.GetMembers(churchId, members2RoleMap.Keys);
-                    familyVM.Members = members.Select(m =>
-                    {
-                        return new FamilyMemberViewModel
-                        {
-                            Role = members2RoleMap[m.MemberId],
-                            Member = m.ToMemberViewModel()
-                        };
-                    });
-                }
+                members2RoleMap[m.MemberId] = m.Role;
             }
-            return Ok(familyVM);
+            if (!members2RoleMap.Keys.Any()) return Ok(familyViewModel);
+
+            var members = await DataRepository.GetMembers(churchId, members2RoleMap.Keys);
+            familyViewModel.Members = members.Select(m => new FamilyMemberViewModel
+            {
+                Role = members2RoleMap[m.MemberId],
+                Member = m.ToMemberViewModel()
+            });
+            return Ok(familyViewModel);
         }
 
-        private string GetUniqueMemberId()
+        private static string GetUniqueMemberId()
         {
-            return System.Guid.NewGuid().ToString();
+            return Guid.NewGuid().ToString();
         }
 
-        private new UserContext GetUserContext() //Temp: use base class
+        private new static UserContext GetUserContext() //Temp: use base class
         {
             //TEMP: read from user claims
             return new UserContext { FamilyId = null, ChurchId = "smioc", LoginId = "admin@gmail.com" };

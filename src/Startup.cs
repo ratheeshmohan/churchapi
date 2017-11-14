@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using parishdirectoryapi.Configurations;
 using parishdirectoryapi.Services;
 
 namespace parishdirectoryapi
@@ -40,6 +41,7 @@ namespace parishdirectoryapi
             services.AddAWSService<Amazon.S3.IAmazonS3>();
             services.AddScoped<IDataRepository, DataRepository>();
             services.AddScoped<ILoginProvider, CognitoLoginProvider>();
+            services.Configure<CognitoSettings>(options => Configuration.GetSection("CognitoSettings").Bind(options));
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline
@@ -50,3 +52,4 @@ namespace parishdirectoryapi
         }
     }
 }
+

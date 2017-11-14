@@ -1,13 +1,14 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using FsCheck;
+using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using NSubstitute;
 using parishdirectoryapi.Controllers;
 using parishdirectoryapi.Controllers.Models;
 using parishdirectoryapi.Models;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 using Xunit;
 
@@ -22,28 +23,101 @@ namespace parishdirectoryapi.Test.Controllers
             var loginProvider = Substitute.For<Services.ILoginProvider>();
             var logger = Substitute.For<ILogger<FamiliesController>>();
 
-            loginProvider.CreateLogin(Arg.Any<string>(), Arg.Any<LoginMetadata>()).Returns(true);
+            loginProvider.CreateLogin(Arg.Any<User>()).Returns(true);
             dataRepository.AddFamily(Arg.Any<Family>()).Returns(true);
             dataRepository.AddMembers(Arg.Any<IEnumerable<Member>>()).Returns(true);
 
-            var familyVM = GetFamilyViewModel();
-
             var controller = new FamiliesController(dataRepository, loginProvider, logger);
-            await controller.Post(familyVM);
 
-            await dataRepository
-               .Received()
-               .AddFamily(Arg.Is<Family>(family =>
-                     Compare(familyVM, family)));
+            var samples = GetFamilyViewModelArb().Sample(100, 100);
+            foreach (var familyViewModel in samples)
+            {
+                dataRepository.ClearReceivedCalls();
 
-            await dataRepository
-                .Received()
-                .AddMembers(Arg.Is<IEnumerable<Member>>(members => TestMembers(familyVM, members)));
+                const string churchId = "abc";
+                await controller.Post(churchId, familyViewModel);
+                try
+                {
+                    await dataRepository
+                        .Received()
+                        .AddFamily(Arg.Is<Family>(family =>
+                            family.ChurchId == churchId &&
+                            Compare(familyViewModel, family) &&
+                            family.Members.Count == familyViewModel.Members.Count()));
+                    if (familyViewModel.Members.Any())
+                    {
+                        await dataRepository
+                            .Received()
+                            .AddMembers(Arg.Is<IEnumerable<Member>>(members => TestMembers(familyViewModel, members)));
+                    }
+                    else
+                    {
+                        await dataRepository
+                            .DidNotReceive()
+                            .AddMembers(Arg.Any<IEnumerable<Member>>());
+                    }
+                }
+                catch
+                {
+                    Console.WriteLine(JsonConvert.SerializeObject(familyViewModel));
+                    throw;
+                }
+            }
         }
 
-        private bool TestMembers(FamilyViewModel familyVM, IEnumerable<Member> members)
+
+        [Fact]
+        public async Task TestAddMembers()
         {
-            return familyVM.Members.Zip(members, (a, b) =>
+            var dataRepository = Substitute.For<Services.IDataRepository>();
+            var loginProvider = Substitute.For<Services.ILoginProvider>();
+            var logger = Substitute.For<ILogger<FamiliesController>>();
+            var controller = new FamiliesController(dataRepository, loginProvider, logger);            
+            var sample = GetFamilyMemberViewModelArb().ArrayOf(2).Sample(5, 5);
+
+            foreach (var members in sample)
+            {
+                const string churchId = "Abc";
+                const string familyId = "1";
+                var familyOrig = new Family { FamilyId = "1", ChurchId = churchId, LoginId = "aa" };
+                dataRepository.GetFamily(Arg.Any<string>(), Arg.Any<string>())
+                    .Returns(familyOrig);
+
+                dataRepository.AddMembers(Arg.Any<IEnumerable<Member>>()).Returns(true);
+
+                dataRepository.ClearReceivedCalls();
+
+                await controller.AddMembers(churchId, familyId, members);
+                if (members.Length > 0)
+                {
+                    await dataRepository
+                        .Received()
+                        .UpdateFamily(Arg.Is<Family>(family =>
+                            members.Length == family.Members.Count));
+
+
+                    await dataRepository
+                        .Received()
+                        .AddMembers(Arg.Is<IEnumerable<Member>>(m =>
+                            members.Length == m.Count()));
+                }
+                else
+                {
+                    await dataRepository
+                        .DidNotReceive()
+                        .AddFamily(Arg.Any<Family>());
+
+                    await dataRepository
+                        .DidNotReceive()
+                        .AddMembers(Arg.Any<IEnumerable<Member>>());
+                }
+            }
+
+        }
+
+        private static bool TestMembers(FamilyViewModel familyViewModel, IEnumerable<Member> members)
+        {
+            return familyViewModel.Members.Zip(members, (a, b) =>
              (
                    a.Member.FirstName == b.FirstName &&
                    a.Member.MiddleName == b.MiddleName &&
@@ -58,86 +132,118 @@ namespace parishdirectoryapi.Test.Controllers
              )).All(_ => _);
         }
 
-        private bool Compare(FamilyViewModel familyVM, Family family)
+        private static bool Compare(FamilyViewModel familyViewModel, Family family)
         {
-            return string.Equals(familyVM.LoginEmail, family.LoginId) &&
-             string.Equals(familyVM.FamilyId, family.FamilyId) &&
-             ObjectDeepEquals(familyVM.Profile.Address, family.Address) &&
-             ObjectDeepEquals(familyVM.Profile.HomeParish, family.HomeParish) &&
-             string.Equals(familyVM.Profile.PhotoUrl, family.PhotoUrl);
+            return string.Equals(familyViewModel.LoginEmail, family.LoginId) &&
+             string.Equals(familyViewModel.FamilyId, family.FamilyId) &&
+             ObjectDeepEquals(familyViewModel.Profile.Address, family.Address) &&
+             ObjectDeepEquals(familyViewModel.Profile.HomeParish, family.HomeParish) &&
+             string.Equals(familyViewModel.Profile.PhotoUrl, family.PhotoUrl);
         }
 
-        private bool ObjectDeepEquals(object a, object b)
+        private static bool ObjectDeepEquals(object a, object b)
         {
             if (a != null && b != null)
             {
                 return string.Equals(JsonConvert.SerializeObject(a),
                      JsonConvert.SerializeObject(a));
             }
-            if (a == null && b == null)
-            {
-                return true;
-            }
-            return false;
+            return a == null && b == null;
         }
 
-        private FamilyViewModel GetFamilyViewModel()
+        private static Gen<Address> GetAddressArb()
         {
-            var payload = new FamilyViewModel()
-            {
-                FamilyId = "Fam001",
-                LoginEmail = "Rat@gmail.com",
-                Profile = new FamilyProfileViewModel
-                {
-                    Address = new Address
-                    {
-                        Country = "c",
-                        Pincode = 1,
-                        State = "s",
-                        StreetAddress1 = "s1",
-                        StreetAddress2 = "s2",
-                        Suburb = "Sb"
-                    },
-                    HomeParish = new Parish
-                    {
-                        Address = new Address
-                        {
-                            Country = "c1",
-                            Pincode = 12,
-                            State = "C1",
-                            StreetAddress1 = "x1",
-                            StreetAddress2 = "sx2",
-                            Suburb = "XCb"
-                        },
-                        Name = "St"
-                    },
-                    PhotoUrl = "AAaA.com"
-                },
-                Members = new[]
-                {
-                    new FamilyMemberViewModel
-                    {
-                        Role = FamilyRole.Child,
-                        Member = new MemberViewModel
-                        {
-                            FirstName="F",
-                            LastName="L",
-                            MiddleName="M",
-                            NickName="N",
-                            DateOfBirth="19-Nov",
-                            DateOfWedding="20-Sept",
-                            EmailId = "rat@gmail.com",
-                            FacebookUrl = "sdsf.com",
-                            Gender = Gender.Female,
-                            LinkedInUrl="Asd",
-                            MemberId="asdasd",
-                            Phone = "Asdcsdsfdsf"
-                        }
-                    }
-                }
-                
-            };
-            return payload;
+            return from country in Arb.Generate<string>()
+                   from pincode in Arb.Generate<int>()
+                   from state in Arb.Generate<string>()
+                   from streetAddress1 in Arb.Generate<string>()
+                   from streetAddress2 in Arb.Generate<string>()
+                   from suburb in Arb.Generate<string>()
+                   select new Address
+                   {
+                       Country = country,
+                       Pincode = pincode,
+                       State = state,
+                       StreetAddress1 = streetAddress1,
+                       StreetAddress2 = streetAddress2,
+                       Suburb = suburb
+                   };
+        }
+
+        private static Gen<Parish> GetParishArb()
+        {
+            return from name in Arb.Generate<string>()
+                   from address in GetAddressArb()
+                   select new Parish
+                   {
+                       Name = name,
+                       Address = address
+                   };
+        }
+
+        private static Gen<FamilyProfileViewModel> GetFamilyProfileViewModelArb()
+        {
+            return from photoUrl in Arb.Generate<string>()
+                   from parish in GetParishArb()
+                   from address in GetAddressArb()
+                   select new FamilyProfileViewModel
+                   {
+                       PhotoUrl = photoUrl,
+                       HomeParish = parish,
+                       Address = address
+                   };
+        }
+
+        private static Gen<FamilyMemberViewModel> GetFamilyMemberViewModelArb()
+        {
+            return from firstName in Arb.Generate<string>()
+                   from lastName in Arb.Generate<string>()
+                   from middleName in Arb.Generate<string>()
+                   from nickName in Arb.Generate<string>()
+                   from dateOfBirth in Arb.Generate<string>()
+                   from dateOfWedding in Arb.Generate<string>()
+                   from emailId in Arb.Generate<string>()
+                   from facebookUrl in Arb.Generate<string>()
+                   from linkedInUrl in Arb.Generate<string>()
+                   from memberId in Arb.Generate<string>()
+                   from phone in Arb.Generate<string>()
+                   from gender in Arb.Generate<Gender>()
+                   from role in Arb.Generate<FamilyRole>()
+                   select new FamilyMemberViewModel
+                   {
+                       Role = role,
+                       Member = new MemberViewModel
+                       {
+                           FirstName = firstName,
+                           LastName = lastName,
+                           MiddleName = middleName,
+                           NickName = nickName,
+                           DateOfBirth = dateOfBirth,
+                           DateOfWedding = dateOfWedding,
+                           EmailId = emailId,
+                           FacebookUrl = facebookUrl,
+                           Gender = gender,
+                           LinkedInUrl = linkedInUrl,
+                           MemberId = memberId,
+                           Phone = phone
+                       }
+                   };
+        }
+
+        private static Gen<FamilyViewModel> GetFamilyViewModelArb()
+        {
+            return from familyId in Arb.Generate<string>()
+                   from loginEmail in Arb.Generate<string>()
+                   from familyProfile in GetFamilyProfileViewModelArb()
+                   from memberCount in Arb.Generate<int>()
+                   from members in GetFamilyMemberViewModelArb().ArrayOf(memberCount)
+                   select new FamilyViewModel()
+                   {
+                       FamilyId = familyId,
+                       LoginEmail = loginEmail,
+                       Profile = familyProfile,
+                       Members = members
+                   };
         }
     }
 }

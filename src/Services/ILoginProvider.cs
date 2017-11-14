@@ -5,7 +5,7 @@ namespace parishdirectoryapi.Services
 {
     public interface ILoginProvider
     {
-        Task<bool> CreateLogin(string email, LoginMetadata metaData);
-        Task<bool> DeleteLogin(string email);
+        Task<bool> CreateLogin(User user);
+        Task<bool> DeleteLogin(string loginId);
     }
 }
