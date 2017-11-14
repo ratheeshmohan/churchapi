@@ -4,7 +4,6 @@ using parishdirectoryapi.Services;
 
 namespace parishdirectoryapi.Controllers
 {
-    [Route("api/churches/{churchId}")]
     public class BaseController : Controller
     {
         protected IDataRepository DataRepository;

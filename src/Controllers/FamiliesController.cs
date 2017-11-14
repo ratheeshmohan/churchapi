@@ -17,7 +17,7 @@ namespace parishdirectoryapi.Controllers
     /// <summary>
     /// 
     /// </summary>
-    [Route("families")]
+    [Route("api/churches/{churchId}/[controller]")]
     [ValidateModel]
     public class FamiliesController : BaseController
     {

@@ -11,12 +11,12 @@ using parishdirectoryapi.Configurations;
     public class CognitoLoginProvider : ILoginProvider
     {
         private readonly CognitoSettings _settngs;
-        private readonly ILogger _logger;
+        private readonly ILogger<CognitoLoginProvider> _logger;
 
         private readonly AmazonCognitoIdentityProviderClient _client =
             new AmazonCognitoIdentityProviderClient();
  
-        public CognitoLoginProvider( ILogger logger, IOptions<CognitoSettings> cognitoOptions)
+        public CognitoLoginProvider(ILogger<CognitoLoginProvider> logger, IOptions<CognitoSettings> cognitoOptions)
         {
             _logger = logger;
             _settngs = cognitoOptions.Value;

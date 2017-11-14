@@ -12,7 +12,7 @@ namespace parishdirectoryapi.Controllers
     /// <summary>
     /// 
     /// </summary>
-    [Route("api/members")]
+    [Route("api/churches/{churchId}/[controller]")]
     [ValidateModel]
     public class MembersController : BaseController
     {
@@ -24,7 +24,7 @@ namespace parishdirectoryapi.Controllers
             Logger = logger;
         }
 
-        [HttpGet("/{memberId}")]
+        [HttpGet("{memberId}")]
         public async Task<IActionResult> Get(string memberId)
         {
             var churchId = GetUserContext().ChurchId;
@@ -33,7 +33,7 @@ namespace parishdirectoryapi.Controllers
             return res == null ? NotFound() : (IActionResult)Ok(res);
         }
 
-        [HttpPost("/{memberId}")]
+        [HttpPost("{memberId}")]
         public async Task<IActionResult> Post(string memberId, [FromBody] MemberProfileViewModel profile)
         {
             var churchId = GetUserContext().ChurchId;

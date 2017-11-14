@@ -15,37 +15,40 @@ namespace parishdirectoryapi.Services
 {
     public class DataRepository : IDataRepository
     {
-        private class DDBTableNames
+        private static class DdbTableNames
         {
-            public const string CHURCHTABLE_NAME = "Churches";
-            public const string FAMILYTABLE_NAME = "Families";
-            public const string MEMBERTABLE_NAME = "Members";
+            public const string ChurchtableName = "Churches";
+            public const string FamilytableName = "Families";
+            public const string MembertableName = "Members";
         }
 
         private readonly Table _churchesTable;
         private readonly Table _familiesTable;
         private readonly Table _membersTable;
-        private readonly IDynamoDBContext DDBContext;
+        private readonly IDynamoDBContext _ddbContext;
         private readonly ILogger<DataRepository> _logger;
 
         public DataRepository(ILogger<DataRepository> logger)
         {
             _logger = logger;
 
-            AWSConfigsDynamoDB.Context.TypeMappings[typeof(Church)] = new TypeMapping(typeof(Church), DDBTableNames.CHURCHTABLE_NAME);
-            AWSConfigsDynamoDB.Context.TypeMappings[typeof(Family)] = new TypeMapping(typeof(Family), DDBTableNames.FAMILYTABLE_NAME);
-            AWSConfigsDynamoDB.Context.TypeMappings[typeof(Member)] = new TypeMapping(typeof(Family), DDBTableNames.MEMBERTABLE_NAME);
+            AWSConfigsDynamoDB.Context.TypeMappings[typeof(Church)] =
+                new TypeMapping(typeof(Church), DdbTableNames.ChurchtableName);
+            AWSConfigsDynamoDB.Context.TypeMappings[typeof(Family)] =
+                new TypeMapping(typeof(Family), DdbTableNames.FamilytableName);
+            AWSConfigsDynamoDB.Context.TypeMappings[typeof(Member)] =
+                new TypeMapping(typeof(Family), DdbTableNames.MembertableName);
 
             var config = new Amazon.DynamoDBv2.DataModel.DynamoDBContextConfig
             {
                 Conversion = DynamoDBEntryConversion.V2,
                 IgnoreNullValues = true
             };
-            DDBContext = new DynamoDBContext(new AmazonDynamoDBClient(), config);
+            _ddbContext = new DynamoDBContext(new AmazonDynamoDBClient(), config);
 
-            _churchesTable = DDBContext.GetTargetTable<Church>(new DynamoDBOperationConfig { IgnoreNullValues = true });
-            _familiesTable = DDBContext.GetTargetTable<Family>(new DynamoDBOperationConfig { IgnoreNullValues = true });
-            _membersTable = DDBContext.GetTargetTable<Member>(new DynamoDBOperationConfig { IgnoreNullValues = true });
+            _churchesTable = _ddbContext.GetTargetTable<Church>(new DynamoDBOperationConfig {IgnoreNullValues = true});
+            _familiesTable = _ddbContext.GetTargetTable<Family>(new DynamoDBOperationConfig {IgnoreNullValues = true});
+            _membersTable = _ddbContext.GetTargetTable<Member>(new DynamoDBOperationConfig {IgnoreNullValues = true});
         }
 
         #region Members
@@ -55,7 +58,7 @@ namespace parishdirectoryapi.Services
             var batchWrite = _membersTable.CreateBatchWrite();
             foreach (var member in members)
             {
-                var document = DDBContext.ToDocument(member);
+                var document = _ddbContext.ToDocument(member);
                 batchWrite.AddDocumentToPut(document);
             }
             await batchWrite.ExecuteAsync();
@@ -88,7 +91,7 @@ namespace parishdirectoryapi.Services
 
             await batchGet.ExecuteAsync();
 
-            return batchGet.Results.Select(doc => DDBContext.FromDocument<Member>(doc));
+            return batchGet.Results.Select(doc => _ddbContext.FromDocument<Member>(doc));
         }
 
         #endregion Members
@@ -97,7 +100,7 @@ namespace parishdirectoryapi.Services
 
         async Task<bool> IDataRepository.AddFamily(Family family)
         {
-            var document = DDBContext.ToDocument(family);
+            var document = _ddbContext.ToDocument(family);
             var config = new PutItemOperationConfig { ConditionalExpression = GetAttributeNotExists(nameof(family.FamilyId)) };
             try
             {
@@ -120,7 +123,7 @@ namespace parishdirectoryapi.Services
         async Task<bool> IDataRepository.DeleteFamily(string churchId, string familyId)
         {
             var family = new Family { ChurchId = churchId, FamilyId = familyId };
-            var document = DDBContext.ToDocument(family);
+            var document = _ddbContext.ToDocument(family);
 
             var deletedFamily = await _familiesTable.DeleteItemAsync(document);
             return deletedFamily != null;
@@ -129,7 +132,7 @@ namespace parishdirectoryapi.Services
 
         async Task<IEnumerable<Family>> IDataRepository.GetFamilies(string churchId)
         {
-            var query = DDBContext.QueryAsync<Family>(churchId);
+            var query = _ddbContext.QueryAsync<Family>(churchId);
 
             var families = await query.GetNextSetAsync();
             while (!query.IsDone)
@@ -144,7 +147,7 @@ namespace parishdirectoryapi.Services
         {
             _logger.LogInformation($"Looking up details of family with ChurchId:{churchId} and FamilyId:{familyId}");
 
-            var family = DDBContext.LoadAsync<Family>(churchId, familyId);
+            var family = _ddbContext.LoadAsync<Family>(churchId, familyId);
 
             _logger.LogInformation($"Found family with ChurchId:{churchId} and FamilyId:{familyId} = {family != null}");
             return family;
@@ -159,7 +162,7 @@ namespace parishdirectoryapi.Services
         {
             _logger.LogInformation($"Getting details of church {churchId}");
 
-            var church = DDBContext.LoadAsync<Church>(churchId);
+            var church = _ddbContext.LoadAsync<Church>(churchId);
 
             _logger.LogInformation($"Found church with id {churchId} = {church != null}");
             return church;
@@ -167,7 +170,7 @@ namespace parishdirectoryapi.Services
 
         async Task<bool> IDataRepository.AddChurch(Church church)
         {
-            var document = DDBContext.ToDocument(church);
+            var document = _ddbContext.ToDocument(church);
             var config = new PutItemOperationConfig
             {
                 ConditionalExpression =
@@ -195,7 +198,7 @@ namespace parishdirectoryapi.Services
 
         #endregion CHURCH
 
-        private Expression GetAttributeNotExists(string attributeName)
+        private static Expression GetAttributeNotExists(string attributeName)
         {
             return new Expression
             {
@@ -203,7 +206,7 @@ namespace parishdirectoryapi.Services
             };
         }
 
-        private Expression GetAttributeExists(string attributeName)
+        private static Expression GetAttributeExists(string attributeName)
         {
             return new Expression
             {
@@ -213,7 +216,7 @@ namespace parishdirectoryapi.Services
 
         private async Task<bool> UpdateTable<T>(Table table, T item, Expression condtionalExpression)
         {
-            var document = DDBContext.ToDocument(item);
+            var document = _ddbContext.ToDocument(item);
             var config = new UpdateItemOperationConfig { ConditionalExpression = condtionalExpression };
 
             try
