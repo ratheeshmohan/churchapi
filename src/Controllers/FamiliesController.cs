@@ -25,7 +25,7 @@ namespace parishdirectoryapi.Controllers
         private readonly ILoginProvider _loginProvider;
 
         public FamiliesController(IDataRepository dataRepository, ILoginProvider loginProvider,
-            ILogger logger) : base(dataRepository)
+            ILogger<FamiliesController> logger) : base(dataRepository)
         {
             _loginProvider = loginProvider;
             _logger = logger;
