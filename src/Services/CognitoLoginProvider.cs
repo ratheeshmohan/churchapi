@@ -2,6 +2,7 @@
 using System.Threading.Tasks;
 using Amazon.CognitoIdentityProvider;
 using Amazon.CognitoIdentityProvider.Model;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using parishdirectoryapi.Configurations;
 
@@ -10,12 +11,14 @@ using parishdirectoryapi.Configurations;
     public class CognitoLoginProvider : ILoginProvider
     {
         private readonly CognitoSettings _settngs;
+        private readonly ILogger _logger;
 
         private readonly AmazonCognitoIdentityProviderClient _client =
             new AmazonCognitoIdentityProviderClient();
  
-        public CognitoLoginProvider(IOptions<CognitoSettings> cognitoOptions)
+        public CognitoLoginProvider( ILogger logger, IOptions<CognitoSettings> cognitoOptions)
         {
+            _logger = logger;
             _settngs = cognitoOptions.Value;
         }
 
@@ -64,6 +67,10 @@ using parishdirectoryapi.Configurations;
             signUpRequest.UserAttributes.AddRange(attributes);
 
             var result = await _client.SignUpAsync(signUpRequest);
+            _logger.LogInformation(result.HttpStatusCode.ToString());
+            _logger.LogInformation(result.CodeDeliveryDetails.ToString());
+            _logger.LogInformation(result.UserConfirmed.ToString());
+            _logger.LogInformation(result.UserSub.ToString());
             return true; //temp
         }
 
