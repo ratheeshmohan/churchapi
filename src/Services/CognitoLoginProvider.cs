@@ -6,23 +6,21 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using parishdirectoryapi.Configurations;
 
- namespace parishdirectoryapi.Services
+namespace parishdirectoryapi.Services
 {
     public class CognitoLoginProvider : ILoginProvider
     {
         private readonly CognitoSettings _settngs;
         private readonly ILogger<CognitoLoginProvider> _logger;
 
-        private readonly AmazonCognitoIdentityProviderClient _client =
-            new AmazonCognitoIdentityProviderClient();
- 
+        private readonly AmazonCognitoIdentityProviderClient _client = new AmazonCognitoIdentityProviderClient();
         public CognitoLoginProvider(ILogger<CognitoLoginProvider> logger, IOptions<CognitoSettings> cognitoOptions)
         {
             _logger = logger;
             _settngs = cognitoOptions.Value;
         }
 
-        Task<bool> ILoginProvider.CreateLogin( User user)
+        Task<bool> ILoginProvider.CreateLogin(User user)
         {
             return CreateAsync(user);
         }
@@ -34,10 +32,9 @@ using parishdirectoryapi.Configurations;
 
         public async Task<bool> CreateAsync(User user)
         {
-            var signUpRequest = new SignUpRequest
+            var createUserRequest = new AdminCreateUserRequest
             {
-                ClientId = _settngs.ClientId,
-                Password = GetTempPassword(),
+                UserPoolId = _settngs.UserPoolId,
                 Username = user.Email,
             };
 
@@ -50,33 +47,27 @@ using parishdirectoryapi.Configurations;
                 },
                 new AttributeType
                 {
-                    Name = "familyId",
+                    Name = "custom:familyId",
                     Value = user.FamlyId
                 },
                 new AttributeType
                 {
-                    Name = "churchId",
+                    Name = "custom:churchId",
                     Value = user.ChurchId
                 },
                 new AttributeType
                 {
-                    Name = "role",
-                    Value = user.Role
+                    Name = "custom:role",
+                    Value = user.Role.ToString()
                 }
             };
-            signUpRequest.UserAttributes.AddRange(attributes);
+            createUserRequest.UserAttributes.AddRange(attributes);
 
-            var result = await _client.SignUpAsync(signUpRequest);
+            var result = await _client.AdminCreateUserAsync(createUserRequest);
+
             _logger.LogInformation(result.HttpStatusCode.ToString());
-            _logger.LogInformation(result.CodeDeliveryDetails.ToString());
-            _logger.LogInformation(result.UserConfirmed.ToString());
-            _logger.LogInformation(result.UserSub.ToString());
+            _logger.LogInformation(result.User.ToString());
             return true; //temp
-        }
-
-        private static string GetTempPassword()
-        {
-            return "DD44E12 $$sh";
         }
     }
 }

@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace parishdirectoryapi.Configurations
+﻿namespace parishdirectoryapi.Configurations
 {
     public class CognitoSettings
     {

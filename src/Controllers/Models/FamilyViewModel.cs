@@ -16,10 +16,11 @@ namespace parishdirectoryapi.Controllers.Models
     {
         [Required]
         public string FamilyId { get; set; }
+
         [Required]
         public string LoginEmail { get; set; }
 
         public FamilyProfileViewModel Profile { get; set; }
-        public IEnumerable<FamilyMemberViewModel> Members { get; set; }
+        public IEnumerable<FamilyMemberViewModel> Members { get; set; } = new FamilyMemberViewModel[0];
     }
 }
