@@ -125,10 +125,16 @@ namespace parishdirectoryapi.Services
             var family = new Family { ChurchId = churchId, FamilyId = familyId };
             var document = _ddbContext.ToDocument(family);
 
-            var deletedFamily = await _familiesTable.DeleteItemAsync(document);
-            return deletedFamily != null;
+            try
+            {
+                await _familiesTable.DeleteItemAsync(document);
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
         }
-
 
         async Task<IEnumerable<Family>> IDataRepository.GetFamilies(string churchId)
         {
@@ -152,7 +158,6 @@ namespace parishdirectoryapi.Services
             _logger.LogInformation($"Found family with ChurchId:{churchId} and FamilyId:{familyId} = {family != null}");
             return family;
         }
-
 
         #endregion Family
 

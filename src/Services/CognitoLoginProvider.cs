@@ -1,5 +1,4 @@
-﻿using System;
-using parishdirectoryapi.Controllers.Models;
+﻿using parishdirectoryapi.Controllers.Models;
 using System.Threading.Tasks;
 using Amazon.CognitoIdentityProvider;
 using Amazon.CognitoIdentityProvider.Model;
@@ -58,9 +57,9 @@ namespace parishdirectoryapi.Services
             {
                 await _client.AdminCreateUserAsync(createUserRequest);
             }
-            catch (Exception e)
+            catch (UsernameExistsException)
             {
-                _logger.LogInformation($"Failed to create user with loginId {user.Email}. Exception: {e} ");
+                _logger.LogInformation($"Failed to create user with loginId {user.Email}");
                 return false;
             }
             return true;
@@ -78,9 +77,9 @@ namespace parishdirectoryapi.Services
                 await _client.AdminDeleteUserAsync(request);
                 return true;
             }
-            catch(Exception e)
+            catch (UserNotFoundException)
             {
-                _logger.LogInformation($"Failed to delete loginId {email} due to Exception : {e}");
+                _logger.LogInformation($"Failed to delete loginId {email} due to Exception");
                 return false;
             }
         }

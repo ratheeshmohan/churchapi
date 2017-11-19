@@ -80,7 +80,7 @@ namespace parishdirectoryapi.Controllers
                 new User
                 {
                     LoginId = familyViewModel.LoginEmail,
-                    ChurchId =churchId,
+                    ChurchId = churchId,
                     FamlyId = familyViewModel.FamilyId,
                     Email = familyViewModel.LoginEmail
                 });
@@ -111,7 +111,7 @@ namespace parishdirectoryapi.Controllers
                 var isDeleted = await DataRepository.DeleteFamily(churchId, familyViewModel.FamilyId);
                 if (!isDeleted)
                 {
-                    _logger.LogError("Failed to rollback  add family from database");
+                    _logger.LogError($"Failed to rollback addded family '{familyViewModel.FamilyId}' from database");
                 }
             }
             return BadRequest();
@@ -164,24 +164,6 @@ namespace parishdirectoryapi.Controllers
             var addMemberTask = InsertMembers(churchId, familyId, familyMembers);
             await Task.WhenAll(updateTask, addMemberTask);
             return Ok();
-        }
-
-        private async Task<bool> InsertMembers(string churchId, string familyId,
-             IEnumerable<FamilyMemberViewModel> familyMembers)
-        {
-            if (!familyMembers.Any())
-            {
-                return true;
-            }
-            var members = familyMembers.Select(m =>
-            {
-                var member = m.Member.ToMember();
-                member.ChurchId = churchId;
-                member.FamilyId = familyId;
-                return member;
-            });
-
-            return await DataRepository.AddMembers(members);
         }
 
         [HttpPost("{familyId}/removemembers")]
@@ -286,6 +268,24 @@ namespace parishdirectoryapi.Controllers
                 Member = m.ToMemberViewModel()
             });
             return Ok(familyViewModel);
+        }
+
+        private async Task<bool> InsertMembers(string churchId, string familyId,
+            IEnumerable<FamilyMemberViewModel> familyMembers)
+        {
+            if (!familyMembers.Any())
+            {
+                return true;
+            }
+            var members = familyMembers.Select(m =>
+            {
+                var member = m.Member.ToMember();
+                member.ChurchId = churchId;
+                member.FamilyId = familyId;
+                return member;
+            });
+
+            return await DataRepository.AddMembers(members);
         }
 
         private static string GetUniqueMemberId()
