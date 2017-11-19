@@ -102,7 +102,7 @@ namespace parishdirectoryapi.Controllers
                 var hasRollbacked = await _loginProvider.DeleteLogin(familyViewModel.LoginEmail);
                 if (!hasRollbacked)
                 {
-                    _logger.LogError($"Failed to rollback  created login");
+                    _logger.LogError($"Failed to rollback created login {familyViewModel.LoginEmail} in Cognito");
                 }
             }
 
@@ -111,7 +111,7 @@ namespace parishdirectoryapi.Controllers
                 var isDeleted = await DataRepository.DeleteFamily(churchId, familyViewModel.FamilyId);
                 if (!isDeleted)
                 {
-                    _logger.LogError($"Failed to rollback  add family from database");
+                    _logger.LogError("Failed to rollback  add family from database");
                 }
             }
             return BadRequest();

@@ -1,4 +1,5 @@
-﻿using parishdirectoryapi.Controllers.Models;
+﻿using System;
+using parishdirectoryapi.Controllers.Models;
 using System.Threading.Tasks;
 using Amazon.CognitoIdentityProvider;
 using Amazon.CognitoIdentityProvider.Model;
@@ -12,25 +13,15 @@ namespace parishdirectoryapi.Services
     {
         private readonly CognitoSettings _settngs;
         private readonly ILogger<CognitoLoginProvider> _logger;
-
         private readonly AmazonCognitoIdentityProviderClient _client = new AmazonCognitoIdentityProviderClient();
+
         public CognitoLoginProvider(ILogger<CognitoLoginProvider> logger, IOptions<CognitoSettings> cognitoOptions)
         {
             _logger = logger;
             _settngs = cognitoOptions.Value;
         }
 
-        Task<bool> ILoginProvider.CreateLogin(User user)
-        {
-            return CreateAsync(user);
-        }
-
-        Task<bool> ILoginProvider.DeleteLogin(string email)
-        {
-            return Task.FromResult(true);
-        }
-
-        public async Task<bool> CreateAsync(User user)
+        async Task<bool> ILoginProvider.CreateLogin(User user)
         {
             var createUserRequest = new AdminCreateUserRequest
             {
@@ -63,11 +54,36 @@ namespace parishdirectoryapi.Services
             };
             createUserRequest.UserAttributes.AddRange(attributes);
 
-            var result = await _client.AdminCreateUserAsync(createUserRequest);
-
-            _logger.LogInformation(result.HttpStatusCode.ToString());
-            _logger.LogInformation(result.User.ToString());
-            return true; //temp
+            try
+            {
+                await _client.AdminCreateUserAsync(createUserRequest);
+            }
+            catch (Exception e)
+            {
+                _logger.LogInformation($"Failed to create user with loginId {user.Email}. Exception: {e} ");
+                return false;
+            }
+            return true;
         }
+
+        async Task<bool> ILoginProvider.DeleteLogin(string email)
+        {
+            var request = new AdminDeleteUserRequest
+            {
+                Username = email,
+                UserPoolId = _settngs.UserPoolId
+            };
+            try
+            {
+                await _client.AdminDeleteUserAsync(request);
+                return true;
+            }
+            catch(Exception e)
+            {
+                _logger.LogInformation($"Failed to delete loginId {email} due to Exception : {e}");
+                return false;
+            }
+        }
+
     }
 }
