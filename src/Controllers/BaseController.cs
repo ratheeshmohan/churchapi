@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using System.Linq;
+using Microsoft.AspNetCore.Mvc;
 using parishdirectoryapi.Security;
 using parishdirectoryapi.Services;
 
@@ -15,8 +16,11 @@ namespace parishdirectoryapi.Controllers
 
         protected UserContext GetUserContext()
         {
-            //TEMP: read from user claims
-            return new UserContext { FamilyId = "fam0001", ChurchId = "smioc", LoginId = "ratheeshmohan@gmail.com" };
+            var email = User.Claims.FirstOrDefault(x => x.Type == AuthPolicy.EmailClaimName)?.Value;
+            var familyId = User.Claims.FirstOrDefault(x => x.Type == AuthPolicy.FamilyClaimName)?.Value;
+            var loginId = User.Claims.FirstOrDefault(x => x.Type == AuthPolicy.EmailClaimName)?.Value;
+
+            return new UserContext {FamilyId = email, ChurchId = familyId, LoginId = loginId};
         }
     }
 }

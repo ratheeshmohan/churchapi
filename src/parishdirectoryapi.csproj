@@ -37,4 +37,5 @@
   <ItemGroup>
     <Folder Include="Properties\" />
   </ItemGroup>
+  <ProjectExtensions><VisualStudio><UserProperties jwks_1json__JSONSchema="json" /></VisualStudio></ProjectExtensions>
 </Project>

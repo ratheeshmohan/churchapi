@@ -5,11 +5,13 @@ using Amazon.CognitoIdentityProvider.Model;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using parishdirectoryapi.Configurations;
+using parishdirectoryapi.Security;
 
 namespace parishdirectoryapi.Services
 {
     public class CognitoLoginProvider : ILoginProvider
     {
+
         private readonly CognitoSettings _settngs;
         private readonly ILogger<CognitoLoginProvider> _logger;
         private readonly AmazonCognitoIdentityProviderClient _client = new AmazonCognitoIdentityProviderClient();
@@ -32,22 +34,22 @@ namespace parishdirectoryapi.Services
             {
                 new AttributeType
                 {
-                    Name = "email",
+                    Name =AuthPolicy.EmailClaimName,
                     Value = user.Email
                 },
                 new AttributeType
                 {
-                    Name = "custom:familyId",
+                    Name = AuthPolicy.FamilyClaimName,
                     Value = user.FamlyId
                 },
                 new AttributeType
                 {
-                    Name = "custom:churchId",
+                    Name =  AuthPolicy.ChurchIdClaimName,
                     Value = user.ChurchId
                 },
                 new AttributeType
                 {
-                    Name = "custom:role",
+                    Name = AuthPolicy.UserRoleClaimName,
                     Value = user.Role.ToString()
                 }
             };

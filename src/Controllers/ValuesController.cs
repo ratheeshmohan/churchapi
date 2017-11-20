@@ -1,5 +1,7 @@
 ﻿using System.Collections.Generic;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using parishdirectoryapi.Security;
 
 namespace parishdirectoryapi.Controllers
 {
@@ -14,6 +16,7 @@ namespace parishdirectoryapi.Controllers
         }
 
         // GET api/values/5
+        [Authorize(Policy= AuthPolicy.ChurchAdministratorPolicy)]
         [HttpGet("{id}")]
         public string Get(int id)
         {

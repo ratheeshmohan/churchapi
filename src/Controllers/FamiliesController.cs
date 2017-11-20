@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using parishdirectoryapi.Controllers.Actions;
@@ -19,46 +20,21 @@ namespace parishdirectoryapi.Controllers
     /// </summary>
     [Route("api/churches/{churchId}/[controller]")]
     [ValidateModel]
+    [Authorize]
     public class FamiliesController : BaseController
     {
         private readonly ILogger _logger;
         private readonly ILoginProvider _loginProvider;
 
         public FamiliesController(IDataRepository dataRepository, ILoginProvider loginProvider,
-            ILogger<FamiliesController> logger) : base(dataRepository)
+            ILogger logger) : base(dataRepository)
         {
             _loginProvider = loginProvider;
             _logger = logger;
         }
 
-        //TODO:
-        //1. this.Request.Headers["Authorization"]
-        //Add Microsoft.AspNetCore.Authentication.JwtBearer middleware and check if this call is made by {family.ChurchId}'s church administrator
-        /* 
-             [HttpGet]
-             //[Admin Only ROLE]
-             public async Task<IActionResult> Get()
-             {
-                 var user = GetUserContext();
-
-             }
-
-                   [HttpGet("/{familyId}")]
-                   //[Admin Only ROLE]
-                   public async Task<IActionResult> Get(string familyId)
-                   {
-
-                   }
-
-                           [HttpPut("/{familyId}")]
-                           //[Admin Only ROLE]
-                           public async Task<IActionResult> Put(FamilyPofile profile)
-                           {
-
-                           }
-                   */
         [HttpPost]
-        //[Admin Only ROLE]
+        [Authorize(Policy = AuthPolicy.ChurchAdministratorPolicy)]
         public async Task<IActionResult> Post(string churchId, [FromBody] FamilyViewModel familyViewModel)
         {
             var context = GetUserContext();
@@ -291,12 +267,6 @@ namespace parishdirectoryapi.Controllers
         private static string GetUniqueMemberId()
         {
             return Guid.NewGuid().ToString();
-        }
-
-        private new static UserContext GetUserContext() //Temp: use base class
-        {
-            //TEMP: read from user claims
-            return new UserContext { FamilyId = null, ChurchId = "smioc", LoginId = "admin@gmail.com" };
         }
     }
 }
