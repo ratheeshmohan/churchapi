@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using parishdirectoryapi.Configurations;
 using parishdirectoryapi.Controllers.Models;
@@ -78,8 +79,6 @@ namespace parishdirectoryapi
 
         private void EnbaleJwtAuthtentication(IApplicationBuilder app)
         {
-     
-
             var bearerOptions = new JwtBearerOptions()
             {
                 AutomaticAuthenticate = true,
@@ -88,15 +87,14 @@ namespace parishdirectoryapi
             };
 
             app.UseJwtBearerAuthentication(bearerOptions);
-            
         }
 
         private TokenValidationParameters CognitoTokenValidationParameters()
         {
-            const string issuer = "https://cognito-idp.ap-southeast-2.amazonaws.com/ap-southeast-2_3PfLVfMii";
-            const string key =
-                "kfxKv-cPpX3YszkIFGxKjWn2r2byRtaRRbVCZikRSreo2DaoigxfGKe5aXaoxK7pCdXEYtWakQ528wrcPZguMGWcnGmYPFCvZOmy-OZDMIQRUtM1dwPdcw7SW_pe1m-eTuc12T8TYBEesJ63jCJgqSkpqpWERXnkNPddRiEOoPFstxJ1OVr3V03OtX-YhJIWCqhrFYAh3GSA4o1frRGGTRBxIPJ0-79tV6IVH7SdmB4ccK4Ds45iddC9gI7l7qz_jFrIQMEys11IiO9z2dEYIVeO9-WCUYgg1aGVC0oNJN90ftAZFl2-ybYTIR4wABopHuFozn9KX_cbKIeNnIVmkQ";
-            const string expo = "AQAB";
+            var authSettings = Configuration.GetSection("JWTAuthSettings");
+            var issuer = authSettings.GetValue<string>("Issuer");
+            var key = authSettings.GetValue<string>("n");
+            var expo = authSettings.GetValue<string>("e");
 
             // Basic settings - signing key to validate with, audience and issuer.
             return new TokenValidationParameters
@@ -123,7 +121,6 @@ namespace parishdirectoryapi
                 // used, some leeway here could be useful.
                 ClockSkew = TimeSpan.FromMinutes(0),
             };
-
         }
 
         private static RsaSecurityKey SigningKey(string key, string expo)
