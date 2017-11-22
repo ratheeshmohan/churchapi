@@ -16,7 +16,7 @@ namespace parishdirectoryapi.Controllers
     [ValidateModel]
     public class MembersController : BaseController
     {
-        private ILogger Logger { get; }
+        private ILogger<MembersController> Logger { get; }
 
         public MembersController(IDataRepository dataRepository,
             ILogger<MembersController> logger) : base(dataRepository)

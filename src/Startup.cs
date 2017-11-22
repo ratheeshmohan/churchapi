@@ -1,9 +1,12 @@
 ﻿using System;
+using System.Net;
 using System.Security.Cryptography;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -73,6 +76,23 @@ namespace parishdirectoryapi
             loggerFactory.AddLambdaLogger(Configuration.GetLambdaLoggerOptions());
 
             EnbaleJwtAuthtentication(app);
+
+            app.UseExceptionHandler(
+                options => {
+                    options.Run(
+                        async context =>
+                        {
+                            context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
+                            context.Response.ContentType = "text/html";
+                            var ex = context.Features.Get<IExceptionHandlerFeature>();
+                            if (ex != null)
+                            {
+                                var err = $"<h1>Error: {ex.Error.Message}</h1>{ex.Error.StackTrace }";
+                                await context.Response.WriteAsync(err).ConfigureAwait(false);
+                            }
+                        });
+                }
+            );
             app.UseMvc();
         }
 
@@ -95,7 +115,7 @@ namespace parishdirectoryapi
             var issuer = authSettings.GetValue<string>("Issuer");
             var key = authSettings.GetValue<string>("n");
             var expo = authSettings.GetValue<string>("e");
-
+            
             // Basic settings - signing key to validate with, audience and issuer.
             return new TokenValidationParameters
             {

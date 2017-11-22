@@ -16,11 +16,11 @@ namespace parishdirectoryapi.Controllers
 
         protected UserContext GetUserContext()
         {
-            var email = User.Claims.FirstOrDefault(x => x.Type == AuthPolicy.EmailClaimName)?.Value;
+            var loginId = User.Claims.FirstOrDefault(x => x.Type == AuthPolicy.UserName)?.Value;
             var familyId = User.Claims.FirstOrDefault(x => x.Type == AuthPolicy.FamilyClaimName)?.Value;
-            var loginId = User.Claims.FirstOrDefault(x => x.Type == AuthPolicy.EmailClaimName)?.Value;
+            var churchId = User.Claims.FirstOrDefault(x => x.Type == AuthPolicy.ChurchIdClaimName)?.Value;
 
-            return new UserContext {FamilyId = email, ChurchId = familyId, LoginId = loginId};
+            return new UserContext {FamilyId = familyId, ChurchId = churchId, LoginId = loginId};
         }
     }
 }
