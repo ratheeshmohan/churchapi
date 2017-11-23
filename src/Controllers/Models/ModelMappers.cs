@@ -44,7 +44,7 @@ namespace parishdirectoryapi.Controllers.Models
         }
         public static Family ToFamily(this FamilyViewModel familyViewModel, string churchId)
         {
-            var family = new Family()
+            var family = new Family
             {
                 ChurchId = churchId,
                 LoginId = familyViewModel.LoginEmail,

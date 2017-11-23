@@ -1,11 +1,8 @@
-﻿using System.ComponentModel.DataAnnotations;
-
+﻿
 namespace parishdirectoryapi.Controllers.Models
 {
-    public class MemberProfileViewModel
+    public class MemberUpdateViewModel
     {
-        [Required]
-        public string MemberId { get; set; }
         public string NickName { get; set; }
         public string Phone { get; set; }
         public string EmailId { get; set; }

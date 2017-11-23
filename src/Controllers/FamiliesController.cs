@@ -143,11 +143,12 @@ namespace parishdirectoryapi.Controllers
                 family.Members = new List<FamilyMember>();
             }
             family.Members.AddRange(
-                familyMembers.Select(m => new FamilyMember
-                {
-                    MemberId = m.Member.MemberId,
-                    Role = m.Role
-                }));
+                familyMembers.Select(m =>
+                    new FamilyMember
+                    {
+                        MemberId = m.Member.MemberId,
+                        Role = m.Role
+                    }));
 
             var updateTask = DataRepository.UpdateFamily(family);
             var addMemberTask = InsertMembers(context.ChurchId, familyId, familyMembers);
@@ -200,37 +201,6 @@ namespace parishdirectoryapi.Controllers
             return Ok();
         }
 
-        [HttpPost("families/{familyId}/updatemembers")]
-        [Authorize(Policy = AuthPolicy.ChurchAdministratorPolicy)]
-        public async Task<IActionResult> UpdateMembers(string familyId,
-            [FromBody] MemberViewModel[] memberViewModels)
-        {
-            var context = GetUserContext();
-
-            var family = await DataRepository.GetFamily(context.ChurchId, familyId);
-            if (family?.Members == null)
-            {
-                return BadRequest();
-            }
-
-            var familyMembers = family.Members.Select(m => m.MemberId).ToList();
-            if (!memberViewModels.All(m => !string.IsNullOrEmpty(m.MemberId) && familyMembers.Contains(m.MemberId)))
-            {
-                return BadRequest();
-            }
-
-            var members = memberViewModels.Select(m =>
-            {
-                var member = m.ToMember();
-                member.FamilyId = familyId;
-                member.ChurchId = context.ChurchId;
-                return member;
-            });
-
-            await Task.WhenAll(members.Select(m => DataRepository.UpdateMember(m)));
-            return Ok();
-        }
-
         [HttpGet("families/{familyId}")]
         [Authorize(Policy = AuthPolicy.ChurchAdministratorPolicy)]
         public async Task<IActionResult> Get(string familyId)
@@ -246,6 +216,7 @@ namespace parishdirectoryapi.Controllers
             var familyViewModel = new FamilyViewModel
             {
                 FamilyId = familyId,
+                LoginEmail = family.LoginId,
                 Members = new FamilyMemberViewModel[0],
                 Profile = new FamilyProfileViewModel
                 {
@@ -282,13 +253,6 @@ namespace parishdirectoryapi.Controllers
         {
             var context = GetUserContext();
             return UpdateProfile(context.FamilyId, profile);
-        }
-
-        [HttpPost("family/updatemembers")]
-        public Task<IActionResult> UpdateFamilyMembers([FromBody] MemberViewModel[] memberViewModels)
-        {
-            var context = GetUserContext();
-            return UpdateMembers(context.FamilyId, memberViewModels);
         }
 
         [HttpGet("family")]

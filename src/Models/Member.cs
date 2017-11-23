@@ -8,8 +8,9 @@ namespace parishdirectoryapi.Models
 
     public class Member
     {
-        public string ChurchId { get; set; }
         public string MemberId { get; set; }
+
+        public string ChurchId { get; set; }
         public string FamilyId { get; set; }
         public string FirstName { get; set; }
         public string MiddleName { get; set; }

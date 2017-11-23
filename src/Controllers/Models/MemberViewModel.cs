@@ -5,14 +5,17 @@ namespace parishdirectoryapi.Controllers.Models
 {
     public class MemberViewModel
     {
-        [Required]
-        public string MemberId { get; set; }
+        public string MemberId { get; internal set; }
+
         [Required]
         public string FirstName { get; set; }
+
         [Required(AllowEmptyStrings = true)]
         public string MiddleName { get; set; }
+
         [Required(AllowEmptyStrings = true)]
         public string LastName { get; set; }
+
         [Required]
         public Gender Gender { get; set; }
 

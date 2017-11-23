@@ -16,17 +16,20 @@ namespace parishdirectoryapi.Controllers
     [ValidateModel]
     public class MembersController : BaseController
     {
-        private ILogger<MembersController> Logger { get; }
-
         public MembersController(IDataRepository dataRepository,
             ILogger<MembersController> logger) : base(dataRepository)
         {
-            Logger = logger;
         }
 
         [HttpGet("{memberId}")]
         public async Task<IActionResult> Get(string memberId)
         {
+            var isAuthorised = await IsAuthorised(memberId);
+            if (!isAuthorised)
+            {
+                return new UnauthorizedResult();
+            }
+
             var churchId = GetUserContext().ChurchId;
             var members = await DataRepository.GetMembers(churchId, new[] { memberId });
             var res = members.FirstOrDefault();
@@ -34,13 +37,19 @@ namespace parishdirectoryapi.Controllers
         }
 
         [HttpPost("{memberId}")]
-        public async Task<IActionResult> Post(string memberId, [FromBody] MemberProfileViewModel profile)
+        public async Task<IActionResult> Post(string memberId, [FromBody] MemberUpdateViewModel profile)
         {
+            var isAuthorised = await IsAuthorised(memberId);
+            if (!isAuthorised)
+            {
+                return new UnauthorizedResult();
+            }
+
             var churchId = GetUserContext().ChurchId;
             var member = new Member
             {
                 ChurchId = churchId,
-                MemberId = profile.MemberId,
+                MemberId = memberId,
                 NickName = profile.NickName,
                 Phone = profile.Phone,
                 EmailId = profile.EmailId,
@@ -52,6 +61,15 @@ namespace parishdirectoryapi.Controllers
 
             var res = await DataRepository.UpdateMember(member);
             return res ? Ok() : new StatusCodeResult(500);
+        }
+
+
+        private async Task<bool> IsAuthorised(string memberId)
+        {
+            var familyId = GetUserContext().FamilyId;
+            var churchId = GetUserContext().ChurchId;
+            var family = await DataRepository.GetFamily(churchId, familyId);
+            return family.Members.Any(x => x.MemberId == memberId);
         }
     }
 }
