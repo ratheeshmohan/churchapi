@@ -7,7 +7,6 @@ namespace parishdirectoryapi.Controllers
 {
     public class BaseController : Controller
     {
-        private UserContext _userContext;
         protected IDataRepository DataRepository;
 
         public BaseController(IDataRepository dataRepository)
@@ -17,15 +16,13 @@ namespace parishdirectoryapi.Controllers
 
         protected internal UserContext GetUserContext()
         {
-            if (_userContext == null)
-            {
-                var loginId = User.Claims.FirstOrDefault(x => x.Type == AuthPolicy.UserName)?.Value;
-                var familyId = User.Claims.FirstOrDefault(x => x.Type == AuthPolicy.FamilyClaimName)?.Value;
-                var churchId = User.Claims.FirstOrDefault(x => x.Type == AuthPolicy.ChurchIdClaimName)?.Value;
+            if (User == null)
+                return null;
 
-                _userContext = new UserContext {FamilyId = familyId, ChurchId = churchId, LoginId = loginId};
-            }
-            return _userContext;
+            var loginId = User.Claims.FirstOrDefault(x => x.Type == AuthPolicy.UserName)?.Value;
+            var familyId = User.Claims.FirstOrDefault(x => x.Type == AuthPolicy.FamilyClaimName)?.Value;
+            var churchId = User.Claims.FirstOrDefault(x => x.Type == AuthPolicy.ChurchIdClaimName)?.Value;
+            return new UserContext {FamilyId = familyId, ChurchId = churchId, LoginId = loginId};
         }
     }
 }

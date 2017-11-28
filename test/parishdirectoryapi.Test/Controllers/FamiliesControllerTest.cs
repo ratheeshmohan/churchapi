@@ -1,46 +1,51 @@
-﻿using FsCheck;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Security.Claims;
+using System.Threading.Tasks;
+using FsCheck;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using NSubstitute;
 using parishdirectoryapi.Controllers;
 using parishdirectoryapi.Controllers.Models;
 using parishdirectoryapi.Models;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+using parishdirectoryapi.Security;
+using parishdirectoryapi.Services;
 using Xunit;
 
 namespace parishdirectoryapi.Test.Controllers
 {
     public class FamiliesControllerTest
     {
+        private const string ChurchId = "smioc";
         [Fact]
         public async Task TestPost()
         {
-            var dataRepository = Substitute.For<Services.IDataRepository>();
-            var loginProvider = Substitute.For<Services.ILoginProvider>();
+            var dataRepository = Substitute.For<IDataRepository>();
+            var loginProvider = Substitute.For<ILoginProvider>();
             var logger = Substitute.For<ILogger<FamiliesController>>();
 
             loginProvider.CreateLogin(Arg.Any<User>()).Returns(true);
             dataRepository.AddFamily(Arg.Any<Family>()).Returns(true);
             dataRepository.AddMembers(Arg.Any<IEnumerable<Member>>()).Returns(true);
 
-            var controller = new FamiliesController(dataRepository, loginProvider, logger);
+            var controller = GetFamiliesController(dataRepository, loginProvider, logger);
 
             var samples = GetFamilyViewModelArb().Sample(100, 100);
             foreach (var familyViewModel in samples)
             {
                 dataRepository.ClearReceivedCalls();
 
-                const string churchId = "abc";
-                await controller.Post(churchId, familyViewModel);
+                await controller.Post(familyViewModel);
                 try
                 {
                     await dataRepository
                         .Received()
                         .AddFamily(Arg.Is<Family>(family =>
-                            family.ChurchId == churchId &&
+                            family.ChurchId == ChurchId &&
                             Compare(familyViewModel, family) &&
                             family.Members.Count == familyViewModel.Members.Count()));
                     if (familyViewModel.Members.Any())
@@ -68,25 +73,26 @@ namespace parishdirectoryapi.Test.Controllers
         [Fact]
         public async Task TestAddMembers()
         {
-            var dataRepository = Substitute.For<Services.IDataRepository>();
-            var loginProvider = Substitute.For<Services.ILoginProvider>();
+            var dataRepository = Substitute.For<IDataRepository>();
+            var loginProvider = Substitute.For<ILoginProvider>();
             var logger = Substitute.For<ILogger<FamiliesController>>();
-            var controller = new FamiliesController(dataRepository, loginProvider, logger);            
-            var sample = GetFamilyMemberViewModelArb().ArrayOf(2).Sample(5, 5);
+            var controller = GetFamiliesController(dataRepository, loginProvider, logger);
 
+            var sample = GetFamilyMemberViewModelArb().ArrayOf(2).Sample(5, 5);
             foreach (var members in sample)
             {
-                const string churchId = "Abc";
                 const string familyId = "1";
-                var familyOrig = new Family { FamilyId = "1", ChurchId = churchId, LoginId = "aa" };
+                var familyOrig = new Family { FamilyId = familyId, ChurchId = ChurchId, LoginId = "aa" };
+
                 dataRepository.GetFamily(Arg.Any<string>(), Arg.Any<string>())
                     .Returns(familyOrig);
+
 
                 dataRepository.AddMembers(Arg.Any<IEnumerable<Member>>()).Returns(true);
 
                 dataRepository.ClearReceivedCalls();
 
-                await controller.AddMembers(churchId, familyId, members);
+                await controller.AddMembers(familyId, members);
                 if (members.Length > 0)
                 {
                     await dataRepository
@@ -112,6 +118,23 @@ namespace parishdirectoryapi.Test.Controllers
                 }
             }
 
+        }
+
+        private static FamiliesController GetFamiliesController(IDataRepository dataRepository, ILoginProvider loginProvider,
+            ILogger<FamiliesController> logger)
+        {
+            var controller = new FamiliesController(dataRepository, loginProvider, logger);
+            var user = new ClaimsPrincipal(new ClaimsIdentity(new[]
+            {
+                new Claim( AuthPolicy.UserName, "admin@g.com"),
+                new Claim(AuthPolicy.ChurchIdClaimName, ChurchId)
+            }));
+
+            controller.ControllerContext = new ControllerContext
+            {
+                HttpContext = new DefaultHttpContext {User = user}
+            };
+            return controller;
         }
 
         private static bool TestMembers(FamilyViewModel familyViewModel, IEnumerable<Member> members)
@@ -236,7 +259,7 @@ namespace parishdirectoryapi.Test.Controllers
                    from familyProfile in GetFamilyProfileViewModelArb()
                    from memberCount in Arb.Generate<int>()
                    from members in GetFamilyMemberViewModelArb().ArrayOf(memberCount)
-                   select new FamilyViewModel()
+                   select new FamilyViewModel
                    {
                        FamilyId = familyId,
                        LoginEmail = loginEmail,
