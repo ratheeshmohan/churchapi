@@ -51,6 +51,11 @@ namespace parishdirectoryapi.Services
                 {
                     Name = AuthPolicy.UserRoleClaimName,
                     Value = user.Role.ToString()
+                },
+                new AttributeType
+                {
+                    Name ="email_verified",
+                    Value = "true"
                 }
             };
             createUserRequest.UserAttributes.AddRange(attributes);
