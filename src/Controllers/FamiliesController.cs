@@ -39,9 +39,6 @@ namespace parishdirectoryapi.Controllers
         [Authorize(Policy = AuthPolicy.ChurchAdministratorPolicy)]
         public async Task<IActionResult> Post([FromBody] FamilyViewModel familyViewModel)
         {
-            var context = GetUserContext();
-            _logger.LogInformation($"Creating new family using {context}");
-
             if (familyViewModel.Members != null)
             {
                 foreach (var m in familyViewModel.Members)
@@ -50,6 +47,7 @@ namespace parishdirectoryapi.Controllers
                 }
             }
 
+            var context = GetUserContext();
             var family = familyViewModel.ToFamily(context.ChurchId);
             var createFamilyT = DataRepository.AddFamily(family);
 
@@ -74,9 +72,10 @@ namespace parishdirectoryapi.Controllers
             }
 
             //Cleanups
-            _logger.LogError($"Failed to create new family using {context}");
             if (createLoginT.Result)
             {
+                _logger.LogInformation($"Roll backing added login {familyViewModel.LoginEmail} from cognito");
+
                 var hasRollbacked = await _loginProvider.DeleteLogin(familyViewModel.LoginEmail);
                 if (!hasRollbacked)
                 {
@@ -86,6 +85,8 @@ namespace parishdirectoryapi.Controllers
 
             if (createFamilyT.Result)
             {
+                _logger.LogInformation($"Roll backing added family {familyViewModel.FamilyId} from database");
+
                 var isDeleted = await DataRepository.DeleteFamily(context.ChurchId, familyViewModel.FamilyId);
                 if (!isDeleted)
                 {
