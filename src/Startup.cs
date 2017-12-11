@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 using System.Net;
 using System.Security.Cryptography;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -39,6 +40,24 @@ namespace parishdirectoryapi
         // This method gets called by the runtime. Use this method to add services to the container
         public void ConfigureServices(IServiceCollection services)
         {
+            //Enable this in producation
+            /* 
+            var origins = Configuration.GetSection("AllowedCORS").AsEnumerable().Select(x => x.Value);
+             services.AddCors(o => o.AddPolicy("AllOrigins", builder =>
+                {
+                    builder.WithOrigins(origins.ToArray())
+                           .AllowAnyMethod()
+                           .AllowAnyHeader();
+                }));
+            */
+            //TEMP
+             services.AddCors(o => o.AddPolicy("AllOrigins", builder =>
+                 {
+                     builder.AllowAnyOrigin()
+                            .AllowAnyMethod()
+                            .AllowAnyHeader();
+                 }));
+
             services.AddAuthorization(options =>
             {
                 options.AddPolicy("Bearer", new AuthorizationPolicyBuilder()
@@ -77,8 +96,11 @@ namespace parishdirectoryapi
 
             EnbaleJwtAuthtentication(app);
 
+            app.UseCors("AllOrigins");
+
             app.UseExceptionHandler(
-                options => {
+                options =>
+                {
                     options.Run(
                         async context =>
                         {
@@ -115,7 +137,7 @@ namespace parishdirectoryapi
             var issuer = authSettings.GetValue<string>("Issuer");
             var key = authSettings.GetValue<string>("n");
             var expo = authSettings.GetValue<string>("e");
-            
+
             // Basic settings - signing key to validate with, audience and issuer.
             return new TokenValidationParameters
             {
