@@ -16,11 +16,10 @@ namespace parishdirectoryapi.Controllers
         }
 
         // GET api/values/5
-        [Authorize(Policy= AuthPolicy.ChurchAdministratorPolicy)]
         [HttpGet("{id}")]
-        public string Get(int id)
+        public object Get(int id)
         {
-            return "value";
+            return new { X = id };
         }
 
         // POST api/values

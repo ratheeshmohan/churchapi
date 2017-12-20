@@ -51,12 +51,12 @@ namespace parishdirectoryapi
                 }));
             */
             //TEMP
-             services.AddCors(o => o.AddPolicy("AllOrigins", builder =>
-                 {
-                     builder.AllowAnyOrigin()
-                            .AllowAnyMethod()
-                            .AllowAnyHeader();
-                 }));
+            services.AddCors(o => o.AddPolicy("AllOrigins", builder =>
+                {
+                    builder.AllowAnyOrigin()
+                           .AllowAnyMethod()
+                           .AllowAnyHeader();
+                }));
 
             services.AddAuthorization(options =>
             {
@@ -77,7 +77,7 @@ namespace parishdirectoryapi
                 {
                     options.SerializerSettings.Converters.Add(new Newtonsoft.Json.Converters.StringEnumConverter());
                     options.SerializerSettings.ContractResolver =
-                        new Newtonsoft.Json.Serialization.DefaultContractResolver();
+                        new Newtonsoft.Json.Serialization.CamelCasePropertyNamesContractResolver();
                 });
             // Pull in any SDK configuration from Configuration object
             services.AddDefaultAWSOptions(Configuration.GetAWSOptions());
