@@ -276,7 +276,6 @@ namespace parishdirectoryapi.Controllers
             {
                 var member = m.Member.ToMember();
                 member.ChurchId = churchId;
-                member.FamilyId = familyId;
                 return member;
             });
 
