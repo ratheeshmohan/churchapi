@@ -3,6 +3,7 @@
     internal class AuthPolicy
     {
         public const string ChurchAdministratorPolicy = "ChurchAdministrator";
+        public const string ChurchMemberPolicy = "ChurchMemberPolicy";
 
         public const string UserRoleClaimName = "custom:role";
         public const string ChurchIdClaimName = "custom:churchId";

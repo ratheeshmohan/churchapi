@@ -25,6 +25,7 @@ namespace parishdirectoryapi.Services
         private readonly Table _churchesTable;
         private readonly Table _familiesTable;
         private readonly Table _membersTable;
+
         private readonly IDynamoDBContext _ddbContext;
         private readonly ILogger<DataRepository> _logger;
 
@@ -37,7 +38,7 @@ namespace parishdirectoryapi.Services
             AWSConfigsDynamoDB.Context.TypeMappings[typeof(Family)] =
                 new TypeMapping(typeof(Family), DdbTableNames.FamilytableName);
             AWSConfigsDynamoDB.Context.TypeMappings[typeof(Member)] =
-                new TypeMapping(typeof(Family), DdbTableNames.MembertableName);
+                new TypeMapping(typeof(Member), DdbTableNames.MembertableName);
 
             var config = new Amazon.DynamoDBv2.DataModel.DynamoDBContextConfig
             {
@@ -46,12 +47,12 @@ namespace parishdirectoryapi.Services
             };
             _ddbContext = new DynamoDBContext(new AmazonDynamoDBClient(), config);
 
-            _churchesTable = _ddbContext.GetTargetTable<Church>(new DynamoDBOperationConfig {IgnoreNullValues = true});
-            _familiesTable = _ddbContext.GetTargetTable<Family>(new DynamoDBOperationConfig {IgnoreNullValues = true});
-            _membersTable = _ddbContext.GetTargetTable<Member>(new DynamoDBOperationConfig {IgnoreNullValues = true});
+            _churchesTable = _ddbContext.GetTargetTable<Church>(new DynamoDBOperationConfig { IgnoreNullValues = true });
+            _familiesTable = _ddbContext.GetTargetTable<Family>(new DynamoDBOperationConfig { IgnoreNullValues = true });
+            _membersTable = _ddbContext.GetTargetTable<Member>(new DynamoDBOperationConfig { IgnoreNullValues = true });
         }
 
-        #region Members
+        #region MEMBERS
 
         async Task<bool> IDataRepository.AddMembers(IEnumerable<Member> members)
         {
@@ -94,9 +95,9 @@ namespace parishdirectoryapi.Services
             return batchGet.Results.Select(doc => _ddbContext.FromDocument<Member>(doc));
         }
 
-        #endregion Members
+        #endregion MEMBERS
 
-        #region Family
+        #region FAMILY
 
         async Task<bool> IDataRepository.AddFamily(Family family)
         {
@@ -159,7 +160,7 @@ namespace parishdirectoryapi.Services
             return family;
         }
 
-        #endregion Family
+        #endregion FAMILY
 
         #region CHURCH
 

@@ -70,6 +70,12 @@ namespace parishdirectoryapi
                     {
                         policy.RequireClaim(AuthPolicy.UserRoleClaimName, UserRole.Administrator.ToString());
                     });
+
+                options.AddPolicy(AuthPolicy.ChurchMemberPolicy,
+                                   policy =>
+                                   {
+                                       policy.RequireClaim(AuthPolicy.UserRoleClaimName, UserRole.User.ToString());
+                                   });
             });
 
             services.AddMvc()

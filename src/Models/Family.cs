@@ -18,8 +18,7 @@ namespace parishdirectoryapi.Models
     {
         public string ChurchId { get; set; }
         public string FamilyId { get; set; }
-        public string LoginId { get; set; }
-
+        public List<string> Logins { get; set; }
 
         public Address Address { get; set; }
         public Parish HomeParish { get; set; }
