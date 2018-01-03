@@ -11,6 +11,7 @@ using parishdirectoryapi.Controllers.Models;
 using parishdirectoryapi.Models;
 using parishdirectoryapi.Security;
 using parishdirectoryapi.Services;
+using parishdirectoryapi.Models;
 // ReSharper disable PossibleMultipleEnumeration
 
 namespace parishdirectoryapi.Controllers
@@ -35,31 +36,32 @@ namespace parishdirectoryapi.Controllers
 
         #region Admin Routes
 
-        [HttpPost("families/{familyId}/addLogin")]
+        [HttpPost("families/{familyId}/addLogins")]
         [Authorize(Policy = AuthPolicy.ChurchAdministratorPolicy)]
-        public async Task<IActionResult> AddLogin(string familyId, [FromBody] string emailId)
+        public async Task<IActionResult> AddLogin(string familyId, [FromBody] string[] emailIds)
         {
-            if (emailId == null)
+            if (emailIds == null || emailIds.Length == 0)
+            {
+                return BadRequest();
+            }
+            var emails = emailIds.Distinct();
+
+            var registrations = await Task.WhenAll(emails.Select(_loginProvider.IsRegistered));
+            if (registrations.Any(r => r))
             {
                 return BadRequest();
             }
 
             var context = GetUserContext();
-
-            var loginCreated = await _loginProvider.CreateLogin(
-                                     new User
-                                     {
-                                         LoginId = emailId,
-                                         ChurchId = context.ChurchId,
-                                         FamlyId = familyId,
-                                         Email = emailId,
-                                         Role = UserRole.User
-                                     });
-            if (!loginCreated)
-            {
-                _logger.LogError($"Failed to add new loginId : {emailId} in the context {context}");
-                return BadRequest();
-            }
+            var createdLogins = await Task.WhenAll(emails.Select(email => _loginProvider.CreateLogin(
+                                                new User
+                                                {
+                                                    LoginId = email,
+                                                    ChurchId = context.ChurchId,
+                                                    FamlyId = familyId,
+                                                    Email = email,
+                                                    Role = UserRole.User
+                                                })));
 
             var family = await DataRepository.GetFamily(context.ChurchId, familyId);
 
@@ -68,7 +70,76 @@ namespace parishdirectoryapi.Controllers
             {
                 logins.AddRange(family.Logins);
             }
-            logins.Add(emailId);
+
+            var failedLogins = new List<string>();
+            foreach (var tup in emails.Zip(createdLogins, System.Tuple.Create))
+            {
+                if (tup.Item2)
+                {
+                    logins.Add(tup.Item1);
+                }
+                else
+                {
+                    failedLogins.Add(tup.Item1);
+                    _logger.LogError($"Failed to add loginId : {tup.Item2} in the context {context}");
+                }
+            }
+
+            if (failedLogins.Count > 0)
+            {
+                return BadRequest(failedLogins);
+            }
+
+            family = new Family
+            {
+                ChurchId = context.ChurchId,
+                FamilyId = familyId,
+                Logins = logins
+            };
+            var result = await DataRepository.UpdateFamily(family);
+            return result ? Ok() : StatusCode((int)HttpStatusCode.InternalServerError);
+        }
+
+        [HttpPost("families/{familyId}/removeLogins")]
+        [Authorize(Policy = AuthPolicy.ChurchAdministratorPolicy)]
+        public async Task<IActionResult> RemoveLogin(string familyId, [FromBody] string[] emailIds)
+        {
+            if (emailIds == null || emailIds.Length == 0)
+            {
+                return BadRequest();
+            }
+            var emails = emailIds.Distinct();
+
+            var context = GetUserContext();
+
+            var family = await DataRepository.GetFamily(context.ChurchId, familyId);
+            if (family == null || !emails.All(family.Logins.Contains))
+            {
+                return BadRequest();
+            }
+
+            var deletions = await Task.WhenAll(emails.Select(_loginProvider.DeleteLogin));
+
+
+            var logins = family.Logins;
+            var failedDeletions = new List<string>();
+            foreach (var tup in emails.Zip(deletions, System.Tuple.Create))
+            {
+                if (tup.Item2)
+                {
+                    logins.Remove(tup.Item1);
+                }
+                else
+                {
+                    failedDeletions.Add(tup.Item1);
+                    _logger.LogError($"Failed to delete login {tup.Item1} from Cognito");
+                }
+            }
+
+            if (failedDeletions.Count > 0)
+            {
+                return new StatusCodeResult(500);
+            }
 
             family = new Family
             {
@@ -81,48 +152,13 @@ namespace parishdirectoryapi.Controllers
             return result ? Ok() : StatusCode((int)HttpStatusCode.InternalServerError);
         }
 
-        [HttpPost("families/{familyId}/removeLogin")]
-        [Authorize(Policy = AuthPolicy.ChurchAdministratorPolicy)]
-        public async Task<IActionResult> RemoveLogin(string familyId, [FromBody] string emailId)
-        {
-            if (emailId == null)
-            {
-                return BadRequest();
-            }
-
-            var context = GetUserContext();
-
-            var family = await DataRepository.GetFamily(context.ChurchId, familyId);
-            if (family == null || !family.Logins.Contains(emailId))
-            {
-                return BadRequest();
-            }
-
-            var deletedLogin = await _loginProvider.DeleteLogin(emailId);
-            if (!deletedLogin)
-            {
-                _logger.LogError($"Failed to delete login {emailId} from Cognito");
-                return new StatusCodeResult(500);
-            }
-
-            family = new Family
-            {
-                ChurchId = context.ChurchId,
-                FamilyId = familyId,
-                Logins = family.Logins.Where(id => id != emailId).ToList()
-            };
-
-            var result = await DataRepository.UpdateFamily(family);
-            return result ? Ok() : StatusCode((int)HttpStatusCode.InternalServerError);
-        }
-
         [HttpPost("families")]
         [Authorize(Policy = AuthPolicy.ChurchAdministratorPolicy)]
-        public async Task<IActionResult> Post([FromBody] Family family)
+        public async Task<IActionResult> Post([FromBody] FamilyViewModel familyVm)
         {
             var context = GetUserContext();
 
-            family.ChurchId = context.ChurchId;
+            var family = ToFamily(familyVm, context.ChurchId);
             var result = await DataRepository.AddFamily(family);
             if (result)
             {
@@ -134,13 +170,12 @@ namespace parishdirectoryapi.Controllers
 
         [HttpPost("families/{familyId}")]
         [Authorize(Policy = AuthPolicy.ChurchAdministratorPolicy)]
-        public async Task<IActionResult> Put(string familyId,
-            [FromBody] Family family)
+        public async Task<IActionResult> Post(string familyId, [FromBody] FamilyViewModel familyVm)
         {
             var context = GetUserContext();
-            family.ChurchId = context.ChurchId;
-            family.FamilyId = familyId;
+            familyVm.FamilyId = familyId;
 
+            var family = ToFamily(familyVm, context.ChurchId);
             var result = await DataRepository.UpdateFamily(family);
             return result ? Ok() : StatusCode((int)HttpStatusCode.InternalServerError);
         }
@@ -189,5 +224,41 @@ namespace parishdirectoryapi.Controllers
         }
 
         #endregion
+
+        [HttpGet("families/{familyId}/members")]
+        public async Task<IActionResult> GetFamilyMembers(string familyId)
+        {
+            var context = GetUserContext();
+            if (context.Role == UserRole.User && familyId != context.FamilyId)
+            {
+                return new UnauthorizedResult();
+            }
+
+            var family = await DataRepository.GetFamily(context.ChurchId, familyId);
+            if(family == null)
+            {
+                return BadRequest();
+            }
+            if(family.Members == null)
+            {
+                return Ok(new Member[0]);
+            }
+
+            var members = await DataRepository.GetMembers(context.ChurchId,  family.Members.Select(m => m.MemberId));
+            return Ok(members);
+        }
+
+        private Family ToFamily(FamilyViewModel familyVm, string churchId)
+        {
+            return new Family
+            {
+                ChurchId = churchId,
+                FamilyId = familyVm.FamilyId,
+                Address = familyVm.Address,
+                PhotoUrl = familyVm.PhotoUrl,
+                HomeParish = familyVm.HomeParish,
+                Members = familyVm.Members
+            };
+        }
     }
 }

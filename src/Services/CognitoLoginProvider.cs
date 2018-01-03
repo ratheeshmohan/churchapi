@@ -72,6 +72,25 @@ namespace parishdirectoryapi.Services
             return true;
         }
 
+        async Task<bool> ILoginProvider.IsRegistered(string email)
+        {
+            var request = new AdminGetUserRequest
+            {
+                Username = email,
+                UserPoolId = _settngs.UserPoolId
+            };
+            try
+            {
+                await _client.AdminGetUserAsync(request);
+                return true;
+            }
+            catch (UserNotFoundException)
+            {
+                _logger.LogInformation($"Failed to delete loginId {email} due to Exception");
+                return false;
+            }
+        }
+
         async Task<bool> ILoginProvider.DeleteLogin(string email)
         {
             var request = new AdminDeleteUserRequest

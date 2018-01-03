@@ -18,12 +18,10 @@ namespace parishdirectoryapi.Models
     {
         public string ChurchId { get; set; }
         public string FamilyId { get; set; }
-        public List<string> Logins { get; set; }
-
+        public List<string> Logins { get; set; } = new List<string>();
         public Address Address { get; set; }
         public Parish HomeParish { get; set; }
         public string PhotoUrl { get; set; }
-
-        public List<FamilyMember> Members { get; set; }
+        public List<FamilyMember> Members { get; set; } = new List<FamilyMember>();
     }
 }

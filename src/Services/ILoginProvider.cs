@@ -7,5 +7,6 @@ namespace parishdirectoryapi.Services
     {
         Task<bool> CreateLogin(User user);
         Task<bool> DeleteLogin(string loginId);
+        Task<bool> IsRegistered(string email);
     }
 }

@@ -31,14 +31,14 @@ namespace parishdirectoryapi.Controllers
 
         [HttpPost]
         [Authorize(Policy = AuthPolicy.ChurchAdministratorPolicy)]
-        public async Task<IActionResult> Post([FromBody]Member[] members)
+        public async Task<IActionResult> Post([FromBody]MemberViewModel[] memberVms)
         {
-            foreach (var m in members)
+            foreach (var m in memberVms)
             {
                 m.MemberId = GetUniqueMemberId();
-                m.ChurchId = GetUserContext().ChurchId;
             }
 
+            var members = memberVms.Select(m => ToMember(m, GetUserContext().ChurchId));
             var result = await DataRepository.AddMembers(members);
             if (result)
             {
@@ -51,13 +51,11 @@ namespace parishdirectoryapi.Controllers
             }
         }
 
-        [HttpPut("{memberId}")]
+        [HttpPost("{memberId}")]
         [Authorize(Policy = AuthPolicy.ChurchAdministratorPolicy)]
-        public async Task<IActionResult> Put(string memberId, [FromBody] Member member)
+        public async Task<IActionResult> Post(string memberId, [FromBody] MemberViewModel memberVm)
         {
-            member.MemberId = memberId;
-            member.ChurchId = GetUserContext().ChurchId;
-
+            var member = ToMember(memberVm, GetUserContext().ChurchId);
             var res = await DataRepository.UpdateMember(member);
             return res ? Ok() : new StatusCodeResult(500);
         }
@@ -124,6 +122,26 @@ namespace parishdirectoryapi.Controllers
         private static string GetUniqueMemberId()
         {
             return Guid.NewGuid().ToString();
+        }
+
+        public static Member ToMember(MemberViewModel memberVm, string churchId)
+        {
+            return new Member
+            {
+                ChurchId = churchId,
+                MemberId = memberVm.MemberId,
+                FirstName = memberVm.FirstName,
+                MiddleName = memberVm.MiddleName,
+                LastName = memberVm.LastName,
+                NickName = memberVm.NickName,
+                Gender = memberVm.Gender,
+                Phone = memberVm.Phone,
+                EmailId = memberVm.EmailId,
+                DateOfBirth = memberVm.DateOfBirth,
+                DateOfWedding = memberVm.DateOfWedding,
+                FacebookUrl = memberVm.FacebookUrl,
+                LinkedInUrl = memberVm.LinkedInUrl
+            };
         }
     }
 }
