@@ -2,6 +2,8 @@
 {
     internal class AuthPolicy
     {
+        public const string AllUserPolicy = "AllUserPolicy";
+
         public const string ChurchAdministratorPolicy = "ChurchAdministrator";
         public const string ChurchMemberPolicy = "ChurchMemberPolicy";
 

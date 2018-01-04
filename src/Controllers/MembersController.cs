@@ -55,6 +55,8 @@ namespace parishdirectoryapi.Controllers
         [Authorize(Policy = AuthPolicy.ChurchAdministratorPolicy)]
         public async Task<IActionResult> Post(string memberId, [FromBody] MemberViewModel memberVm)
         {
+            memberVm.MemberId = memberId;
+
             var member = ToMember(memberVm, GetUserContext().ChurchId);
             var res = await DataRepository.UpdateMember(member);
             return res ? Ok() : new StatusCodeResult(500);
@@ -63,8 +65,7 @@ namespace parishdirectoryapi.Controllers
         #endregion
 
         [HttpGet("{memberId}")]
-        [Authorize(Policy = AuthPolicy.ChurchAdministratorPolicy)]
-        [Authorize(Policy = AuthPolicy.ChurchMemberPolicy)]
+        [Authorize(Policy = AuthPolicy.AllUserPolicy)]
         public async Task<IActionResult> Get(string memberId)
         {
             var context = GetUserContext();
@@ -124,7 +125,7 @@ namespace parishdirectoryapi.Controllers
             return Guid.NewGuid().ToString();
         }
 
-        public static Member ToMember(MemberViewModel memberVm, string churchId)
+        private static Member ToMember(MemberViewModel memberVm, string churchId)
         {
             return new Member
             {

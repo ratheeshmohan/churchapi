@@ -72,10 +72,16 @@ namespace parishdirectoryapi
                     });
 
                 options.AddPolicy(AuthPolicy.ChurchMemberPolicy,
-                                   policy =>
-                                   {
-                                       policy.RequireClaim(AuthPolicy.UserRoleClaimName, UserRole.User.ToString());
-                                   });
+                    policy =>
+                    {
+                        policy.RequireClaim(AuthPolicy.UserRoleClaimName, UserRole.User.ToString());
+                    });
+
+                options.AddPolicy(AuthPolicy.AllUserPolicy,
+                    policy =>
+                    {
+                        policy.RequireClaim(AuthPolicy.UserRoleClaimName, UserRole.Administrator.ToString(), UserRole.User.ToString());
+                    });
             });
 
             services.AddMvc()

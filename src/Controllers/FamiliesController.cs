@@ -226,6 +226,8 @@ namespace parishdirectoryapi.Controllers
         #endregion
 
         [HttpGet("families/{familyId}/members")]
+        [Authorize(Policy = AuthPolicy.AllUserPolicy)]
+
         public async Task<IActionResult> GetFamilyMembers(string familyId)
         {
             var context = GetUserContext();
@@ -235,16 +237,16 @@ namespace parishdirectoryapi.Controllers
             }
 
             var family = await DataRepository.GetFamily(context.ChurchId, familyId);
-            if(family == null)
+            if (family == null)
             {
                 return BadRequest();
             }
-            if(family.Members == null)
+            if (family.Members == null)
             {
                 return Ok(new Member[0]);
             }
 
-            var members = await DataRepository.GetMembers(context.ChurchId,  family.Members.Select(m => m.MemberId));
+            var members = await DataRepository.GetMembers(context.ChurchId, family.Members.Select(m => m.MemberId));
             return Ok(members);
         }
 
