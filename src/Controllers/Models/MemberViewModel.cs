@@ -10,7 +10,6 @@ namespace parishdirectoryapi.Controllers.Models
         [Required]
         public string FirstName { get; set; }
 
-        [Required(AllowEmptyStrings = true)]
         public string MiddleName { get; set; }
 
         [Required(AllowEmptyStrings = true)]
