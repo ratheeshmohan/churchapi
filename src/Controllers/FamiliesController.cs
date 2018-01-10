@@ -11,7 +11,6 @@ using parishdirectoryapi.Controllers.Models;
 using parishdirectoryapi.Models;
 using parishdirectoryapi.Security;
 using parishdirectoryapi.Services;
-using parishdirectoryapi.Models;
 // ReSharper disable PossibleMultipleEnumeration
 
 namespace parishdirectoryapi.Controllers
@@ -42,14 +41,15 @@ namespace parishdirectoryapi.Controllers
         {
             if (emailIds == null || emailIds.Length == 0)
             {
-                return BadRequest();
+                return BadRequest("Empty emailIds");
             }
             var emails = emailIds.Distinct();
 
             var registrations = await Task.WhenAll(emails.Select(_loginProvider.IsRegistered));
             if (registrations.Any(r => r))
             {
-                return BadRequest();
+                var registeredEmails = emails.Zip(registrations, (e, r) => Tuple.Create(e, r)).Where(t => t.Item2).Select(t => t.Item1);
+                return BadRequest($"Email Id(s) are already registered. {string.Join(",", registeredEmails)}");
             }
 
             var context = GetUserContext();
@@ -87,7 +87,7 @@ namespace parishdirectoryapi.Controllers
 
             if (failedLogins.Count > 0)
             {
-                return BadRequest(failedLogins);
+                return BadRequest($"Failed to create logins.{string.Join(",", failedLogins.ToArray())}");
             }
 
             family = new Family
@@ -225,9 +225,10 @@ namespace parishdirectoryapi.Controllers
 
         #endregion
 
+        #region All users Routes
+
         [HttpGet("families/{familyId}/members")]
         [Authorize(Policy = AuthPolicy.AllUserPolicy)]
-
         public async Task<IActionResult> GetFamilyMembers(string familyId)
         {
             var context = GetUserContext();
@@ -249,6 +250,10 @@ namespace parishdirectoryapi.Controllers
             var members = await DataRepository.GetMembers(context.ChurchId, family.Members.Select(m => m.MemberId));
             return Ok(members);
         }
+
+
+
+        #endregion
 
         private Family ToFamily(FamilyViewModel familyVm, string churchId)
         {
