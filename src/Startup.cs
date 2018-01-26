@@ -99,6 +99,8 @@ namespace parishdirectoryapi
             services.AddScoped<IDataRepository, DataRepository>();
             services.AddScoped<ILoginProvider, CognitoLoginProvider>();
             services.Configure<CognitoSettings>(options => Configuration.GetSection("CognitoSettings").Bind(options));
+            services.Configure<ResourceSettings>(options => Configuration.GetSection("ResourceSettings").Bind(options));
+
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline

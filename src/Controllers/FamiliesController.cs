@@ -197,6 +197,7 @@ namespace parishdirectoryapi.Controllers
 
         #region User Routes
 
+
         [HttpPost("family/profile")]
         [Authorize(Policy = AuthPolicy.ChurchMemberPolicy)]
         public async Task<IActionResult> UpdateFamilyProfile([FromBody] FamilyProfileViewModel profile)
