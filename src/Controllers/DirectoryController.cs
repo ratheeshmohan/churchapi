@@ -4,6 +4,8 @@ using System.Globalization;
 using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
+using Amazon.S3;
+using Amazon.S3.Model;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
@@ -92,7 +94,7 @@ namespace parishdirectoryapi.Controllers
                     FamilyId = f.FamilyId,
                     Address = f.Address,
                     HomeParish = f.HomeParish,
-                    PhotoUrl = f.PhotoUrl,
+                    PhotoUrl = ToS3Link(f.PhotoUrl),
                 };
                 if (f.Members != null)
                 {
@@ -105,6 +107,33 @@ namespace parishdirectoryapi.Controllers
                 return item;
             });
             return Ok(directory);
+        }
+
+        private string ToS3Link(string objectKey)
+        {
+            using (var s3Client = new AmazonS3Client(Amazon.RegionEndpoint.USEast1))
+            {
+
+                var request1 = new GetPreSignedUrlRequest
+                {
+                    BucketName = "parishdirectoryimages",
+                    Key = objectKey,
+                    Expires = DateTime.Now.AddMinutes(5),
+                    Verb = HttpVerb.GET
+                };
+
+                var url = "";
+                try
+                {
+                    url = s3Client.GetPreSignedURL(request1);
+                }
+                catch (Exception e)
+                {
+                    _logger.LogError(e.ToString());
+                }
+
+                return url;
+            }
         }
     }
 }
