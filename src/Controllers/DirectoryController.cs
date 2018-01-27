@@ -1,19 +1,11 @@
 using System;
-using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
-using System.Net;
 using System.Threading.Tasks;
-using Amazon.S3;
-using Amazon.S3.Model;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
-using parishdirectoryapi.Configurations;
-using parishdirectoryapi.Controllers.Actions;
 using parishdirectoryapi.Controllers.Models;
-using parishdirectoryapi.Models;
 using parishdirectoryapi.Security;
 using parishdirectoryapi.Services;
 // ReSharper disable PossibleMultipleEnumeration
@@ -27,13 +19,12 @@ namespace parishdirectoryapi.Controllers
     public class DirectoryController : BaseController
     {
         private readonly ILogger<DirectoryController> _logger;
-        private readonly ResourceSettings _resourceSettings;
-        public DirectoryController(IDataRepository dataRepository,
+        private readonly IImageService _imageService;
 
-        IOptions<ResourceSettings> resourceSettings,
-         ILogger<DirectoryController> logger) : base(dataRepository)
+        public DirectoryController(IDataRepository dataRepository,
+        IImageService imageService, ILogger<DirectoryController> logger) : base(dataRepository)
         {
-            _resourceSettings = resourceSettings.Value;
+            _imageService = imageService;
             _logger = logger;
         }
 
@@ -99,7 +90,7 @@ namespace parishdirectoryapi.Controllers
                     FamilyId = f.FamilyId,
                     Address = f.Address,
                     HomeParish = f.HomeParish,
-                    PhotoUrl = ToS3Link(f.PhotoUrl),
+                    PhotoUrl = _imageService.CreateDownloadableLink(f.PhotoUrl),
                 };
                 if (f.Members != null)
                 {
@@ -114,31 +105,5 @@ namespace parishdirectoryapi.Controllers
             return Ok(directory);
         }
 
-        private string ToS3Link(string objectKey)
-        {
-            using (var s3Client = new AmazonS3Client(Amazon.RegionEndpoint.APSoutheast2))
-            {
-
-                var request1 = new GetPreSignedUrlRequest
-                {
-                    BucketName = _resourceSettings.ImagesS3Bucket,
-                    Key = objectKey,
-                    Expires = DateTime.Now.AddMinutes(5),
-                    Verb = HttpVerb.GET
-                };
-
-                var url = "";
-                try
-                {
-                    url = s3Client.GetPreSignedURL(request1);
-                }
-                catch (Exception e)
-                {
-                    _logger.LogError(e.ToString());
-                }
-
-                return url;
-            }
-        }
     }
 }

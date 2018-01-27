@@ -98,6 +98,7 @@ namespace parishdirectoryapi
             services.AddAWSService<Amazon.S3.IAmazonS3>();
             services.AddScoped<IDataRepository, DataRepository>();
             services.AddScoped<ILoginProvider, CognitoLoginProvider>();
+            services.AddScoped<IImageService, S3ImageService>();
             services.Configure<CognitoSettings>(options => Configuration.GetSection("CognitoSettings").Bind(options));
             services.Configure<ResourceSettings>(options => Configuration.GetSection("ResourceSettings").Bind(options));
 

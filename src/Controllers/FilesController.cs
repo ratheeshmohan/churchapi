@@ -22,14 +22,14 @@ namespace parishdirectoryapi.Controllers
     [ValidateModel]
     public class FilesController : BaseController
     {
-        private readonly ResourceSettings _resourceSettings;
+        private readonly IImageService _imageService;
         private readonly ILogger<FilesController> _logger;
 
         public FilesController(IDataRepository dataRepository,
-               IOptions<ResourceSettings> resourceSettings,
+              IImageService imageService,
                 ILogger<FilesController> logger) : base(dataRepository)
         {
-            _resourceSettings = resourceSettings.Value;
+            _imageService = imageService;
             _logger = logger;
         }
 
@@ -37,26 +37,9 @@ namespace parishdirectoryapi.Controllers
         [Authorize(Policy = AuthPolicy.ChurchMemberPolicy)]
         public IActionResult UploadLink()
         {
-            using (var s3Client = new AmazonS3Client(Amazon.RegionEndpoint.APSoutheast2))
-            {
-                var request = new GetPreSignedUrlRequest
-                {
-                    BucketName = _resourceSettings.ImagesS3Bucket,
-                    Key = Guid.NewGuid().ToString(),
-                    Expires = DateTime.Now.AddMinutes(5),
-                    Verb = HttpVerb.PUT
-                };
-                var url = "";
-                try
-                {
-                    url = s3Client.GetPreSignedURL(request);
-                }
-                catch (Exception e)
-                {
-                    _logger.LogError(e.ToString());
-                }
-                return Ok(url);
-            }
+            var key = Guid.NewGuid().ToString();
+            var url = _imageService.CreateUploadLink(key);
+            return Ok(new { Key = key, Link = url });
         }
     }
 }

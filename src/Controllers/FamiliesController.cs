@@ -25,11 +25,13 @@ namespace parishdirectoryapi.Controllers
     {
         private readonly ILogger<FamiliesController> _logger;
         private readonly ILoginProvider _loginProvider;
+        private readonly IImageService _imageService;
 
         public FamiliesController(IDataRepository dataRepository, ILoginProvider loginProvider,
-            ILogger<FamiliesController> logger) : base(dataRepository)
+        IImageService imageService, ILogger<FamiliesController> logger) : base(dataRepository)
         {
             _loginProvider = loginProvider;
+            _imageService = imageService;
             _logger = logger;
         }
 
@@ -191,6 +193,7 @@ namespace parishdirectoryapi.Controllers
             {
                 return NotFound();
             }
+            family.PhotoUrl = _imageService.CreateDownloadableLink(family.PhotoUrl);
             return Ok(family);
         }
         #endregion
@@ -251,9 +254,6 @@ namespace parishdirectoryapi.Controllers
             var members = await DataRepository.GetMembers(context.ChurchId, family.Members.Select(m => m.MemberId));
             return Ok(members);
         }
-
-
-
         #endregion
 
         private Family ToFamily(FamilyViewModel familyVm, string churchId)
