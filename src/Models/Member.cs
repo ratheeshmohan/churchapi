@@ -23,9 +23,9 @@ namespace parishdirectoryapi.Models
         public string FacebookUrl { get; set; }
         public string LinkedInUrl { get; set; }
 
-        public bool? DisplayDateOfBirth { get; set; }
-        public bool? DisplayDateOfWedding { get; set; }
-        public bool? DisplayPhone { get; set; }
-        public bool? DisplayEmail { get; set; }
+        public bool? RevealDateOfBirth { get; set; }
+        public bool? RevealDateOfWedding { get; set; }
+        public bool? RevealPhone { get; set; }
+        public bool? RevealEmail { get; set; }
     }
 }

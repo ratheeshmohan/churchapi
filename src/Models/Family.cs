@@ -23,5 +23,9 @@ namespace parishdirectoryapi.Models
         public Parish HomeParish { get; set; }
         public string PhotoUrl { get; set; }
         public List<FamilyMember> Members { get; set; }
+
+
+        public bool? RevealAddress { get; set; }
+        public bool? RevealHomeParish { get; set; }
     }
 }

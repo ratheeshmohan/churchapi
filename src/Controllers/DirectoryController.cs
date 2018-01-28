@@ -51,7 +51,7 @@ namespace parishdirectoryapi.Controllers
                      LinkedInUrl = member.LinkedInUrl
                  };
 
-                 if (member.DisplayDateOfBirth.HasValue && member.DisplayDateOfBirth.Value &&
+                 if (member.RevealDateOfBirth.HasValue && member.RevealDateOfBirth.Value &&
                         !string.IsNullOrEmpty(member.DateOfBirth) && DateTime.TryParse(member.DateOfBirth, out var date))
                  {
                      m.DateOfBirth = date.ToString("d MMMM", CultureInfo.InvariantCulture);
@@ -61,7 +61,7 @@ namespace parishdirectoryapi.Controllers
                      m.DateOfBirth = "";
                  }
 
-                 if (member.DisplayDateOfWedding.HasValue && member.DisplayDateOfWedding.Value &&
+                 if (member.RevealDateOfWedding.HasValue && member.RevealDateOfWedding.Value &&
                     !string.IsNullOrEmpty(member.DateOfWedding) && DateTime.TryParse(member.DateOfWedding, out var wdate))
                  {
                      m.DateOfWedding = wdate.ToString("d MMMM", CultureInfo.InvariantCulture);
@@ -71,11 +71,11 @@ namespace parishdirectoryapi.Controllers
                      m.DateOfWedding = "";
                  }
 
-                 if (!member.DisplayPhone.HasValue || !member.DisplayPhone.Value)
+                 if (!member.RevealPhone.HasValue || !member.RevealPhone.Value)
                  {
                      m.Phone = "";
                  }
-                 if (!member.DisplayEmail.HasValue || !member.DisplayEmail.Value)
+                 if (!member.RevealEmail.HasValue || !member.RevealEmail.Value)
                  {
                      m.EmailId = "";
                  }
@@ -85,22 +85,32 @@ namespace parishdirectoryapi.Controllers
             var membersMap = mappedMembers.ToDictionary(m => m.MemberId);
             var directory = families.Select(f =>
             {
-                var item = new DirectoryItem
+                var directoryEntry = new DirectoryItem
                 {
                     FamilyId = f.FamilyId,
                     Address = f.Address,
                     HomeParish = f.HomeParish,
                     PhotoUrl = _imageService.CreateDownloadableLink(f.PhotoUrl),
                 };
+
+                if (!f.RevealHomeParish.HasValue || !f.RevealHomeParish.Value)
+                {
+                    directoryEntry.HomeParish = null;
+                }
+                if (!f.RevealAddress.HasValue || !f.RevealAddress.Value)
+                {
+                    directoryEntry.Address = null;
+                }
+
                 if (f.Members != null)
                 {
-                    item.Members = f.Members.Select(m => new DirectoryMember()
+                    directoryEntry.Members = f.Members.Select(m => new DirectoryMember()
                     {
                         Role = m.Role,
                         Member = membersMap[m.MemberId]
                     });
                 }
-                return item;
+                return directoryEntry;
             });
             return Ok(directory);
         }

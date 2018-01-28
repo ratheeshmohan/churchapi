@@ -100,10 +100,14 @@ namespace parishdirectoryapi.Controllers
                 ChurchId = churchId,
                 MemberId = memberId,
                 NickName = profile.NickName,
-                Phone = profile.Phone,
-                EmailId = profile.EmailId,
+                /*  Phone = profile.Phone,
+                EmailId = profile.EmailId,*/
                 FacebookUrl = profile.FacebookUrl,
                 LinkedInUrl = profile.LinkedInUrl,
+                RevealDateOfBirth = profile.RevealDateOfBirth,
+                RevealDateOfWedding = profile.RevealDateOfWedding,
+                RevealEmail = profile.RevealEmail,
+                RevealPhone = profile.RevealPhone
             };
 
             var res = await DataRepository.UpdateMember(member);

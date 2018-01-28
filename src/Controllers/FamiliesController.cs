@@ -214,6 +214,8 @@ namespace parishdirectoryapi.Controllers
             family.Address = profile.Address;
             family.PhotoUrl = profile.PhotoUrl;
             family.HomeParish = profile.HomeParish;
+            family.RevealAddress = profile.RevealAddress;
+            family.RevealHomeParish = profile.RevealHomeParish;
 
             var result = await DataRepository.UpdateFamily(family);
             return result ? Ok() : StatusCode((int)HttpStatusCode.InternalServerError);
