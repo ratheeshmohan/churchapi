@@ -217,6 +217,15 @@ namespace parishdirectoryapi.Controllers
             family.RevealAddress = profile.RevealAddress;
             family.RevealHomeParish = profile.RevealHomeParish;
 
+            if (!string.IsNullOrEmpty(profile.PhotoUrl))
+            {
+                var origFamily = await DataRepository.GetFamily(context.ChurchId, context.FamilyId);
+                if (!string.IsNullOrEmpty(origFamily.PhotoUrl))
+                {
+                    await _imageService.DeletObject(origFamily.PhotoUrl);
+                }
+            }
+
             var result = await DataRepository.UpdateFamily(family);
             return result ? Ok() : StatusCode((int)HttpStatusCode.InternalServerError);
         }

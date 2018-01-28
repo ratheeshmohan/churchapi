@@ -7,6 +7,7 @@ namespace parishdirectoryapi.Services
     {
         string CreateDownloadableLink(string key);
         string CreateUploadLink(string key);
+        Task DeletObject(string keyName);
 
     }
 }

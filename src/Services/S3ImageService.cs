@@ -1,5 +1,6 @@
 
 using System;
+using System.Threading.Tasks;
 using Amazon.S3;
 using Amazon.S3.Model;
 using Microsoft.Extensions.Logging;
@@ -17,6 +18,28 @@ namespace parishdirectoryapi.Services
         {
             _resourceSettings = resourceSettings.Value;
             _logger = logger;
+        }
+
+
+        public async Task DeletObject(string keyName)
+        {
+            using (var s3Client = new AmazonS3Client(Amazon.RegionEndpoint.APSoutheast2))
+            {
+                DeleteObjectRequest deleteObjectRequest = new DeleteObjectRequest
+                {
+                    BucketName = _resourceSettings.ImagesS3Bucket,
+                    Key = keyName
+                };
+
+                try
+                {
+                    var response = await s3Client.DeleteObjectAsync(deleteObjectRequest);
+                }
+                catch (Exception e)
+                {
+                    _logger.LogError(e.ToString());
+                }
+            }
         }
 
         public string CreateUploadLink(string key)
