@@ -182,6 +182,15 @@ namespace parishdirectoryapi.Controllers
             return result ? Ok() : StatusCode((int)HttpStatusCode.InternalServerError);
         }
 
+        [HttpGet("families")]
+        [Authorize(Policy = AuthPolicy.ChurchAdministratorPolicy)]
+        public async Task<IActionResult> Get()
+        {
+            var context = GetUserContext();
+            var families = await DataRepository.GetFamilies(context.ChurchId);
+            return Ok(families.Select(f=>f.FamilyId));
+        }
+
         [HttpGet("families/{familyId}")]
         [Authorize(Policy = AuthPolicy.ChurchAdministratorPolicy)]
         public async Task<IActionResult> Get(string familyId)
