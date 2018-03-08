@@ -8,8 +8,11 @@ namespace parishdirectoryapi.Models
         GrandFather,
         Mother,
         GrandMother,
-        Child,
-        GrandChild,
-        InLaw
+        Son,
+        Daughter,
+        GrandSon,
+        GrandDaughter,
+        SonInLaw,
+        DaughterInLaw
     }
 }
