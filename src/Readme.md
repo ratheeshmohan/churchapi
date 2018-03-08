@@ -87,5 +87,6 @@ Execute unit tests
 Deploy application
 ```
     cd "parishdirectoryapi/src/parishdirectoryapi"
-    dotnet lambda deploy-serverless
-```
+ dotnet lambda deploy-serverless --profile admin
+ 
+ ```
