@@ -39,9 +39,7 @@ namespace parishdirectoryapi
 
         // This method gets called by the runtime. Use this method to add services to the container
         public void ConfigureServices(IServiceCollection services)
-        {
-            //Enable this in producation
-            /* 
+        {            
             var origins = Configuration.GetSection("AllowedCORS").AsEnumerable().Select(x => x.Value);
              services.AddCors(o => o.AddPolicy("AllOrigins", builder =>
                 {
@@ -49,14 +47,21 @@ namespace parishdirectoryapi
                            .AllowAnyMethod()
                            .AllowAnyHeader();
                 }));
-            */
+            
             //TEMP
+            /* 
             services.AddCors(o => o.AddPolicy("AllOrigins", builder =>
                 {
                     builder.AllowAnyOrigin()
                            .AllowAnyMethod()
                            .AllowAnyHeader();
                 }));
+*/
+            services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+            .AddJwtBearer(options =>
+            {
+                options.TokenValidationParameters = CognitoTokenValidationParameters();
+            });
 
             services.AddAuthorization(options =>
             {
@@ -108,11 +113,7 @@ namespace parishdirectoryapi
         public void Configure(IApplicationBuilder app, IHostingEnvironment env, ILoggerFactory loggerFactory)
         {
             loggerFactory.AddLambdaLogger(Configuration.GetLambdaLoggerOptions());
-
-            EnbaleJwtAuthtentication(app);
-
             app.UseCors("AllOrigins");
-
             app.UseExceptionHandler(
                 options =>
                 {
@@ -130,20 +131,8 @@ namespace parishdirectoryapi
                         });
                 }
             );
+            app.UseAuthentication();
             app.UseMvc();
-        }
-
-
-        private void EnbaleJwtAuthtentication(IApplicationBuilder app)
-        {
-            var bearerOptions = new JwtBearerOptions()
-            {
-                AutomaticAuthenticate = true,
-                AutomaticChallenge = true,
-                TokenValidationParameters = CognitoTokenValidationParameters(),
-            };
-
-            app.UseJwtBearerAuthentication(bearerOptions);
         }
 
         private TokenValidationParameters CognitoTokenValidationParameters()

@@ -9,11 +9,11 @@
 		"All the command line options for the Lambda command can be specified in this file."
 	],
 	
-	"profile"     : "admin",
-	"region"      : "ap-southeast-2",
+    "profile":"",
+    "region" : "",
 	"configuration" : "Release",
-	"framework"     : "netcoreapp1.1",
+	"framework"     : "netcoreapp2.0",
 	"s3-prefix"     : "parishdirectoryapi/",
 	"template"      : "serverless.template",
-	"template-parameters" : "ShouldCreateBucket=false;BucketName=parishdirectoryapi-deployment"
+	"template-parameters" : "ShouldCreateBucket=true;BucketName="
 }
